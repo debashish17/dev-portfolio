@@ -689,18 +689,6 @@ function MobileHeroSection() {
         zIndex: 1,
       }} />
 
-      {/* Black wedge */}
-      <div style={{
-        position: 'absolute',
-        width: '56vw', height: '28vw',
-        maxWidth: 260, maxHeight: 130,
-        background: 'var(--ink)',
-        borderRadius: '50vw 50vw 0 0',
-        top: '50%', left: '50%',
-        transform: 'translate(-50%, -90%)',
-        transformOrigin: 'bottom',
-        zIndex: 2,
-      }} />
 
       {/* Name */}
       <div style={{

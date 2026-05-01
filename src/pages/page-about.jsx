@@ -44,7 +44,7 @@ export default function AboutPage() {
           }}>
             <AboutScene1 progress={progress} mouse={mouse} />
             <AboutScene2 progress={progress} mouse={mouse} />
-            <AboutScene3 progress={progress} mouse={mouse} />
+            <AboutScene3 progress={progress} mouse={mouse} isMobile={isMobile} />
           </div>
 
           {/* Section header */}
@@ -336,7 +336,7 @@ function AboutScene2({ progress, mouse }) {
 }
 
 // Scene 3: Current Experience
-function AboutScene3({ progress, mouse }) {
+function AboutScene3({ progress, mouse, isMobile }) {
   const t = clamp(remap(progress, 0.68, 0.82, 0, 1), 0, 1);
   if (t <= 0) return null;
 
@@ -363,10 +363,10 @@ function AboutScene3({ progress, mouse }) {
         {/* Left: Big company callout */}
         <div className="about-exp-left" style={{
           position: 'relative',
-          padding: '48px 40px',
+          padding: isMobile ? '32px 20px' : '48px 40px',
           background: 'var(--ink)',
           color: 'var(--cream)',
-          transform: `translateX(${(1 - t) * -80}px)`,
+          transform: isMobile ? 'none' : `translateX(${(1 - t) * -80}px)`,
           opacity: t,
         }}>
           {/* Red corner */}
@@ -397,7 +397,7 @@ function AboutScene3({ progress, mouse }) {
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: 16,
-          transform: `translateX(${(1 - t) * 80}px)`,
+          transform: isMobile ? 'none' : `translateX(${(1 - t) * 80}px)`,
           opacity: t,
         }} className="about-stat-grid about-exp-right">
           {[

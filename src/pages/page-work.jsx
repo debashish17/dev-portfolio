@@ -81,7 +81,8 @@ export default function WorkPage() {
   return (
     <div className="paper-bg" style={{
       position: 'absolute', inset: 0,
-      overflow: 'hidden',
+      overflowX: 'hidden',
+      overflowY: isMobile ? 'auto' : 'hidden',
     }}>
       <div className="grid-overlay" />
 
@@ -165,6 +166,7 @@ export default function WorkPage() {
 
 function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeactivate }) {
   const [hover, setHover] = useState(false);
+  const isMobile = useIsMobile();
   const expanded = hover && !anyActive;
 
   return (
@@ -206,7 +208,10 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
         pointerEvents: 'none',
       }}>
         {!expanded ? (
-          <div style={{
+          <div style={isMobile ? {
+            position: 'absolute',
+            bottom: 16, left: 16, right: 16,
+          } : {
             writingMode: 'vertical-rl',
             transform: 'rotate(180deg)',
             position: 'absolute',
@@ -215,6 +220,9 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
             <div className="display" style={{
               fontSize: 'clamp(40px, 4.5vw, 64px)',
               letterSpacing: '-0.03em',
+              whiteSpace: isMobile ? 'nowrap' : 'normal',
+              overflow: isMobile ? 'hidden' : 'visible',
+              textOverflow: isMobile ? 'ellipsis' : 'clip',
             }}>
               {project.title}
             </div>
@@ -313,6 +321,7 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
 function ProjectDetail({ project, onClose }) {
   // Deconstructed view: project explodes into separated geometric pieces
   const [t, setT] = useState(0);
+  const isMobile = useIsMobile();
   useEffect(() => {
     const start = Date.now();
     let raf;
@@ -328,13 +337,15 @@ function ProjectDetail({ project, onClose }) {
   return (
     <div className="work-detail-overlay" style={{
       position: 'fixed',
-      inset: 56,
+      inset: isMobile ? 0 : 56,
       zIndex: 50,
       pointerEvents: 'auto',
       background: 'rgba(242,234,211,0.96)',
       backdropFilter: 'blur(2px)',
-      perspective: 1400,
-      opacity: t,
+      perspective: isMobile ? 'none' : 1400,
+      opacity: isMobile ? 1 : t,
+      overflowY: isMobile ? 'auto' : 'hidden',
+      overflowX: 'hidden',
     }}>
       <div className="grid-overlay" />
 
@@ -358,18 +369,29 @@ function ProjectDetail({ project, onClose }) {
         }}
       >× CLOSE</button>
 
-      {/* Deconstructed pieces - layered grid:
-          Top row:    [number plate | title | metrics]
-          Mid row:    [    BRIEF (full width)        ]
-          Bottom row: [INSTRUMENTS chips (full width)]
-      */}
-      <div style={{
+      {/* Deconstructed pieces */}
+      <div style={isMobile ? {
+        position: 'relative',
+        padding: '72px 20px 48px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20,
+      } : {
         position: 'absolute',
         inset: 0,
         transformStyle: 'preserve-3d',
       }}>
-        {/* Piece 1: number plate - top left, smaller */}
-        <div className="work-detail-piece1" style={{
+        {/* Piece 1: number plate */}
+        <div className="work-detail-piece1" style={isMobile ? {
+          background: project.color,
+          color: project.color === 'var(--ochre)' ? 'var(--ink)' : 'var(--cream)',
+          padding: '12px 18px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 12,
+          alignSelf: 'flex-start',
+          boxShadow: '6px 6px 0 var(--ink)',
+        } : {
           position: 'absolute',
           top: 80, left: '5%',
           transform: `translateX(${(1 - t) * -200}px) translateZ(${t * 100}px) rotate(-3deg)`,
@@ -384,28 +406,35 @@ function ProjectDetail({ project, onClose }) {
             fontFamily: 'Bodoni Moda, serif',
             fontStyle: 'italic',
             fontWeight: 900,
-            fontSize: 80,
+            fontSize: isMobile ? 48 : 80,
             lineHeight: 0.85,
           }}>{project.no}</div>
         </div>
 
-        {/* Piece 2: title slab - top center, between plate and metrics */}
-        <div className="work-detail-piece2" style={{
+        {/* Piece 2: title slab */}
+        <div className="work-detail-piece2" style={isMobile ? {
+          /* nothing — just normal flow */
+        } : {
           position: 'absolute',
           top: 90, left: '28%', right: '32%',
           transform: `translateY(${(1 - t) * -100}px) translateZ(${t * 50}px) rotate(1deg)`,
         }}>
           <div className="label" style={{ color: 'var(--red)', marginBottom: 8 }}>{project.tag}</div>
           <div className="display" style={{
-            fontSize: 'clamp(40px, 5.2vw, 78px)',
+            fontSize: isMobile ? 'clamp(32px, 8vw, 52px)' : 'clamp(40px, 5.2vw, 78px)',
             color: 'var(--ink)',
             letterSpacing: '-0.04em',
             lineHeight: 0.85,
           }}>{project.title}</div>
         </div>
 
-        {/* Piece 4: metrics column - top right, narrower */}
-        <div className="work-detail-piece4" style={{
+        {/* Piece 4: metrics */}
+        <div className="work-detail-piece4" style={isMobile ? {
+          display: 'flex',
+          flexDirection: 'row',
+          gap: 8,
+          flexWrap: 'wrap',
+        } : {
           position: 'absolute',
           right: '5%', top: 80,
           width: 200,
@@ -414,13 +443,15 @@ function ProjectDetail({ project, onClose }) {
           flexDirection: 'column',
           gap: 8,
         }}>
-          <div className="label" style={{ color: 'var(--red)' }}>READINGS</div>
+          <div className="label" style={{ color: 'var(--red)', width: '100%' }}>READINGS</div>
           {project.metrics.map(m => (
             <div key={m.k} style={{
               padding: '10px 14px',
               background: 'var(--ink)',
               color: 'var(--cream)',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              flex: isMobile ? '1 1 auto' : undefined,
+              minWidth: isMobile ? 80 : undefined,
             }}>
               <div className="mono" style={{ fontSize: 10, opacity: 0.7 }}>{m.k}</div>
               <div style={{
@@ -434,8 +465,13 @@ function ProjectDetail({ project, onClose }) {
           ))}
         </div>
 
-        {/* Piece 3: BRIEF - mid band, narrower (won't collide with metrics) */}
-        <div className="work-detail-piece3" style={{
+        {/* Piece 3: BRIEF */}
+        <div className="work-detail-piece3" style={isMobile ? {
+          padding: '16px 20px',
+          background: 'var(--cream)',
+          border: '2px solid var(--ink)',
+          boxShadow: '6px 6px 0 var(--red)',
+        } : {
           position: 'absolute',
           top: '46%', left: '5%', right: '32%',
           transform: `translateX(${(1 - t) * 200}px) translateZ(${t * 80}px)`,
@@ -448,8 +484,10 @@ function ProjectDetail({ project, onClose }) {
           <div style={{ fontSize: 14, lineHeight: 1.5 }}>{project.desc}</div>
         </div>
 
-        {/* Piece 5: stack chips - bottom band, full width */}
-        <div className="work-detail-piece5" style={{
+        {/* Piece 5: stack chips */}
+        <div className="work-detail-piece5" style={isMobile ? {
+          paddingBottom: 8,
+        } : {
           position: 'absolute',
           bottom: 32, left: '5%', right: '5%',
           transform: `translateY(${(1 - t) * 120}px) translateZ(${t * 40}px)`,

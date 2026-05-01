@@ -126,7 +126,7 @@ export default function Loader({ onDone }) {
         opacity: titleT,
         transform: `translateY(${(1 - titleT) * 30}px)`,
       }}>
-        <div className="display" style={{ fontSize: 72, color: 'var(--ink)', letterSpacing: '-0.04em' }}>
+        <div className="display" style={{ fontSize: 'clamp(32px, 9vw, 72px)', color: 'var(--ink)', letterSpacing: '-0.04em' }}>
           DEBASHISH<span style={{ color: 'var(--red)' }}>.</span>
         </div>
         <div className="label" style={{ marginTop: 12, color: 'var(--ink)' }}>

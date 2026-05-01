@@ -43,7 +43,7 @@ export default function AchievementsPage() {
   return (
     <div className="paper-bg" style={{
       position: 'absolute', inset: 0,
-      overflow: 'hidden',
+      overflow: isMobile ? 'auto' : 'hidden',
     }}>
       <div className="grid-overlay" />
 
@@ -141,13 +141,15 @@ export default function AchievementsPage() {
 
       {/* Achievement cards — left and right */}
       <div className="achievements-grid" style={{
-        position: 'absolute',
-        inset: 0,
+        position: isMobile ? 'relative' : 'absolute',
+        inset: isMobile ? 'auto' : 0,
         display: 'grid',
-        gridTemplateColumns: '1fr 440px 1fr',
-        alignItems: 'center',
-        padding: '0 64px',
-        gap: 32,
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 440px 1fr',
+        alignItems: isMobile ? 'start' : 'center',
+        padding: isMobile ? '100px 36px 80px 24px' : '0 64px',
+        gap: isMobile ? 56 : 32,
+        overflowY: 'visible',
+        overflowX: 'visible',
       }}>
         {/* Left card: 1st place */}
         <AchievementCard
@@ -156,9 +158,10 @@ export default function AchievementsPage() {
           rotate={-2}
           isHovered={hovered === 0}
           onHover={(v) => setHovered(v ? 0 : null)}
+          isMobile={isMobile}
         />
 
-        <div /> {/* center spacer for medal */}
+        {!isMobile && <div />} {/* center spacer for medal — desktop only */}
 
         {/* Right card: 2nd place */}
         <AchievementCard
@@ -167,14 +170,16 @@ export default function AchievementsPage() {
           rotate={2}
           isHovered={hovered === 1}
           onHover={(v) => setHovered(v ? 1 : null)}
+          isMobile={isMobile}
         />
       </div>
 
-      {/* Bottom strip - quote */}
+      {/* Bottom strip - quote — hidden on mobile (cards scroll past it) */}
       <div className="achievements-bottom" style={{
         position: 'absolute',
         bottom: 32, left: 64, right: 64,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+        display: isMobile ? 'none' : 'flex',
+        justifyContent: 'space-between', alignItems: 'flex-end',
       }}>
         <div style={{
           fontFamily: 'Bodoni Moda, serif',
@@ -200,26 +205,28 @@ export default function AchievementsPage() {
   );
 }
 
-function AchievementCard({ a, align, rotate, isHovered, onHover }) {
+function AchievementCard({ a, align, rotate, isHovered, onHover, isMobile }) {
   return (
     <div
       data-magnet
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
       style={{
-        justifySelf: align === 'right' ? 'flex-end' : 'flex-start',
-        width: 380,
+        justifySelf: isMobile ? 'stretch' : (align === 'right' ? 'flex-end' : 'flex-start'),
+        width: isMobile ? '100%' : 380,
         position: 'relative',
         transformStyle: 'preserve-3d',
-        transform: `rotate(${isHovered ? 0 : rotate}deg) translateY(${isHovered ? -8 : 0}px) translateZ(${isHovered ? 40 : 0}px)`,
+        transform: isMobile ? 'none' : `rotate(${isHovered ? 0 : rotate}deg) translateY(${isHovered ? -8 : 0}px) translateZ(${isHovered ? 40 : 0}px)`,
         transition: 'transform 0.4s cubic-bezier(.7,0,.3,1)',
         cursor: 'pointer',
+        paddingTop: isMobile ? 32 : 0,
       }}
     >
       {/* Behind shadow */}
       <div style={{
         position: 'absolute',
-        inset: 0,
+        top: isMobile ? 32 : 0,
+        left: 0, right: 0, bottom: 0,
         background: a.color,
         transform: 'translate(12px, 12px)',
         zIndex: 0,
@@ -230,14 +237,15 @@ function AchievementCard({ a, align, rotate, isHovered, onHover }) {
         position: 'relative',
         background: 'var(--cream)',
         border: '3px solid var(--ink)',
-        padding: 28,
+        padding: isMobile ? '40px 24px 24px' : 28,
         zIndex: 1,
       }}>
-        {/* Place badge */}
+        {/* Place badge — absolute on desktop, flows at top on mobile */}
         <div style={{
-          position: 'absolute',
-          top: -24, left: -24,
-          width: 80, height: 80,
+          position: isMobile ? 'absolute' : 'absolute',
+          top: isMobile ? -28 : -24,
+          left: isMobile ? 16 : -24,
+          width: 72, height: 72,
           background: a.color,
           border: '3px solid var(--ink)',
           color: a.color === 'var(--ochre)' ? 'var(--ink)' : 'var(--cream)',
@@ -245,14 +253,14 @@ function AchievementCard({ a, align, rotate, isHovered, onHover }) {
           fontFamily: 'Bodoni Moda, serif',
           fontStyle: 'italic',
           fontWeight: 900,
-          fontSize: 32,
+          fontSize: 28,
           transform: 'rotate(-8deg)',
           boxShadow: '4px 4px 0 var(--ink)',
         }}>
           {a.place}
         </div>
 
-        <div className="label" style={{ marginTop: 12, color: a.color }}>· PLACE ·</div>
+        <div className="label" style={{ marginTop: isMobile ? 8 : 12, color: a.color }}>· PLACE ·</div>
         <div className="display" style={{
           fontSize: 24,
           marginTop: 12,
