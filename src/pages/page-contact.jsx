@@ -3,8 +3,19 @@ import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, L
 // CONTACT PAGE
 // Big propaganda-style "TRANSMIT" panel with form + contact details
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handle = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, []);
+  return mobile;
+}
+
 export default function ContactPage() {
-  const mouse = useMouseParallax(5);
+  const isMobile = useIsMobile();
+  const mouse = useMouseParallax(isMobile ? 0 : 5);
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [status, setStatus] = useState('idle'); // idle | sending | sent | error
 
@@ -89,7 +100,7 @@ export default function ContactPage() {
       </div>
 
       {/* Two column layout */}
-      <div style={{
+      <div className="contact-grid" style={{
         position: 'absolute',
         top: 100, bottom: 80, left: 64, right: 64,
         display: 'grid',

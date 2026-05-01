@@ -58,41 +58,103 @@ const ROUTES = [
 ];
 
 function Nav({ route, go }) {
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  const navigate = React.useCallback((id) => {
+    setDrawerOpen(false);
+    go(id);
+  }, [go]);
+
+  // Close drawer on outside scroll/click
+  React.useEffect(() => {
+    if (!drawerOpen) return;
+    const close = () => setDrawerOpen(false);
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    return () => window.removeEventListener('keydown', close);
+  }, [drawerOpen]);
+
   return (
-    <div className="nav-rail">
-      <div className="nav-mark clickable" onClick={() => go('home')} data-magnet>
-        <LogoMark size={32} />
-        <div>
-          <div className="display" style={{ fontSize: 14, lineHeight: 1 }}>D.D.B</div>
-          <div className="mono" style={{ fontSize: 8, opacity: 0.6, letterSpacing: '0.2em' }}>FOLIO 2026</div>
+    <>
+      <div className="nav-rail">
+        <div className="nav-mark clickable" onClick={() => navigate('home')} data-magnet>
+          <LogoMark size={32} />
+          <div>
+            <div className="display" style={{ fontSize: 14, lineHeight: 1 }}>D.D.B</div>
+            <div className="mono" style={{ fontSize: 8, opacity: 0.6, letterSpacing: '0.2em' }}>FOLIO 2026</div>
+          </div>
+        </div>
+
+        {/* Desktop nav items */}
+        <div className="nav-items">
+          {ROUTES.map(r => (
+            <div
+              key={r.id}
+              className={`nav-item clickable ${route === r.id ? 'active' : ''}`}
+              onClick={() => navigate(r.id)}
+              data-magnet
+            >
+              <span className="nav-item-num">{r.no}</span>
+              <span style={{
+                fontFamily: 'Archivo, sans-serif',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.18em',
+                fontSize: 11,
+              }}>{r.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className="mono nav-clock-location" style={{ fontSize: 10, opacity: 0.6 }}>SUNDERGARH · IN</div>
+          <LiveClock />
+          {/* Hamburger button — only visible on mobile (CSS toggles display) */}
+          <button
+            className={`nav-hamburger ${drawerOpen ? 'open' : ''}`}
+            onClick={() => setDrawerOpen(o => !o)}
+            aria-label="Toggle navigation"
+            aria-expanded={drawerOpen}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
         </div>
       </div>
 
-      <div className="nav-items">
+      {/* Mobile drawer */}
+      <div className={`nav-drawer ${drawerOpen ? 'open' : ''}`} role="navigation" aria-label="Mobile navigation">
         {ROUTES.map(r => (
           <div
             key={r.id}
-            className={`nav-item clickable ${route === r.id ? 'active' : ''}`}
-            onClick={() => go(r.id)}
-            data-magnet
+            className={`nav-drawer-item ${route === r.id ? 'active' : ''}`}
+            onClick={() => navigate(r.id)}
           >
-            <span className="nav-item-num">{r.no}</span>
+            <span className="nav-item-num mono" style={{ fontSize: 11, opacity: 0.6 }}>{r.no}</span>
             <span style={{
               fontFamily: 'Archivo, sans-serif',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.18em',
-              fontSize: 11,
+              fontSize: 14,
             }}>{r.label}</span>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div className="mono" style={{ fontSize: 10, opacity: 0.6 }}>SUNDERGARH · IN</div>
-        <LiveClock />
-      </div>
-    </div>
+      {/* Backdrop */}
+      {drawerOpen && (
+        <div
+          onClick={() => setDrawerOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: '56px 0 0 0',
+            zIndex: 140,
+            background: 'rgba(10,10,10,0.4)',
+          }}
+        />
+      )}
+    </>
   );
 }
 

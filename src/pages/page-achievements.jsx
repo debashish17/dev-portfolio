@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handle = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, []);
+  return mobile;
+}
+
 // ACHIEVEMENTS PAGE - hackathon victories
 // Big poster: medal/seal centered, geometric rays, achievement cards as cut-paper layers
 
@@ -26,7 +36,8 @@ const ACHIEVEMENTS = [
 ];
 
 export default function AchievementsPage() {
-  const mouse = useMouseParallax(5);
+  const isMobile = useIsMobile();
+  const mouse = useMouseParallax(isMobile ? 0 : 5);
   const [hovered, setHovered] = useState(null);
 
   return (
@@ -63,7 +74,7 @@ export default function AchievementsPage() {
       </div>
 
       {/* Big medal seal */}
-      <div style={{
+      <div className="achievements-medal" style={{
         position: 'absolute',
         top: '50%', left: '50%',
         width: 440, height: 440,
@@ -117,7 +128,7 @@ export default function AchievementsPage() {
         textAlign: 'center',
         pointerEvents: 'none',
       }}>
-        <div className="display" style={{
+        <div className="display achievements-title" style={{
           fontSize: 'clamp(80px, 13vw, 200px)',
           color: 'var(--ink)',
           letterSpacing: '-0.05em',
@@ -129,7 +140,7 @@ export default function AchievementsPage() {
       </div>
 
       {/* Achievement cards — left and right */}
-      <div style={{
+      <div className="achievements-grid" style={{
         position: 'absolute',
         inset: 0,
         display: 'grid',
@@ -160,7 +171,7 @@ export default function AchievementsPage() {
       </div>
 
       {/* Bottom strip - quote */}
-      <div style={{
+      <div className="achievements-bottom" style={{
         position: 'absolute',
         bottom: 32, left: 64, right: 64,
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',

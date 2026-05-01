@@ -335,3 +335,212 @@ html, body {
   align-items: center;
   justify-content: center;
 }
+
+/* ============ MOBILE NAV HAMBURGER ============ */
+.nav-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 8px;
+  background: none;
+  border: none;
+  z-index: 201;
+}
+.nav-hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--ink);
+  transition: transform 0.3s, opacity 0.3s;
+}
+.nav-hamburger.open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.nav-hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+.nav-hamburger.open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile drawer */
+.nav-drawer {
+  display: none;
+  position: fixed;
+  inset: 56px 0 0 0;
+  background: var(--cream);
+  border-top: 2px solid var(--ink);
+  z-index: 150;
+  flex-direction: column;
+  padding: 0;
+  overflow-y: auto;
+}
+.nav-drawer.open {
+  display: flex;
+}
+.nav-drawer-item {
+  display: flex;
+  align-items: center;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(10,10,10,0.12);
+  cursor: pointer;
+  gap: 16px;
+  transition: background 0.15s;
+  color: var(--ink);
+  text-decoration: none;
+}
+.nav-drawer-item:hover,
+.nav-drawer-item.active {
+  background: var(--ink);
+  color: var(--cream);
+}
+.nav-drawer-item.active .nav-item-num {
+  opacity: 1;
+  color: var(--red);
+}
+
+/* ============ TOUCH — hide custom cursor ============ */
+@media (hover: none) {
+  .cursor-dot { display: none !important; }
+}
+
+/* ============ RESPONSIVE BREAKPOINTS ============ */
+@media (max-width: 768px) {
+  /* Nav: hide desktop items, show hamburger */
+  .nav-items { display: none; }
+  .nav-clock { display: none; }
+  .nav-hamburger { display: flex; }
+
+  /* Reduce left-right padding */
+  .nav-rail { padding: 0 16px; }
+
+  /* Stage sits below 56px header, same as desktop */
+  .stage { inset: 56px 0 0 0; }
+
+  /* Reduce grid lines density on mobile */
+  .grid-overlay { background-size: 40px 40px; }
+
+  /* Button: full-width on mobile */
+  .btn-block { width: 100%; justify-content: center; }
+
+  /* Stamp: no rotation that can clip */
+  .stamp { transform: rotate(-2deg); }
+}
+
+@media (max-width: 480px) {
+  .nav-mark div .display { font-size: 12px !important; }
+}
+
+/* Hide location text and vertical corner chrome on mobile */
+@media (max-width: 768px) {
+  .nav-clock-location { display: none; }
+  .corner-vert-text { display: none; }
+}
+
+/* ============ PAGE — ABOUT mobile ============ */
+@media (max-width: 768px) {
+  /* Scene 1: stack portrait above text */
+  .about-scene1-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto;
+  }
+  .about-scene1-grid > :first-child {
+    height: 320px;
+    min-height: 0;
+  }
+  .about-scene1-grid > :last-child {
+    padding: 24px 20px !important;
+  }
+  /* Scene 2 & 3: single column */
+  .about-edu-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .about-exp-grid {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  .about-stat-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* ============ PAGE — WORK mobile ============ */
+@media (max-width: 768px) {
+  .work-cards-container {
+    flex-direction: column !important;
+    top: 160px !important;
+    left: 16px !important;
+    right: 16px !important;
+    bottom: 16px !important;
+    overflow-y: auto !important;
+    gap: 12px !important;
+    perspective: none !important;
+  }
+  .work-header {
+    left: 16px !important;
+    right: 16px !important;
+    top: 16px !important;
+  }
+  .work-project-card {
+    flex: none !important;
+    min-height: 180px;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  .work-detail-overlay {
+    inset: 56px 0 0 0 !important;
+    overflow-y: auto !important;
+    padding-bottom: 32px;
+  }
+  .work-detail-piece1 { position: relative !important; top: auto !important; left: auto !important; margin: 16px 16px 0 !important; width: auto !important; }
+  .work-detail-piece2 { position: relative !important; top: auto !important; left: auto !important; right: auto !important; margin: 16px 16px 0 !important; }
+  .work-detail-piece4 { position: relative !important; top: auto !important; right: auto !important; left: auto !important; width: auto !important; margin: 16px 16px 0 !important; }
+  .work-detail-piece3 { position: relative !important; top: auto !important; left: auto !important; right: auto !important; margin: 16px 16px 0 !important; }
+  .work-detail-piece5 { position: relative !important; bottom: auto !important; left: auto !important; right: auto !important; margin: 16px 16px !important; }
+}
+
+/* ============ PAGE — CONTACT mobile ============ */
+@media (max-width: 768px) {
+  .contact-grid {
+    grid-template-columns: 1fr !important;
+    top: 80px !important;
+    gap: 32px !important;
+    overflow-y: auto !important;
+    bottom: 0 !important;
+    padding-bottom: 40px !important;
+  }
+}
+
+/* ============ PAGE — ACHIEVEMENTS mobile ============ */
+@media (max-width: 768px) {
+  .achievements-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto auto;
+    padding: 0 20px !important;
+    overflow-y: auto !important;
+    align-content: start !important;
+    padding-top: 100px !important;
+    gap: 48px !important;
+  }
+  .achievements-medal {
+    display: none !important;
+  }
+  .achievements-title {
+    font-size: clamp(40px, 12vw, 80px) !important;
+  }
+  .achievements-bottom {
+    left: 20px !important;
+    right: 20px !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+}
+
+/* ============ PAGE — HOME skill grid mobile ============ */
+@media (max-width: 600px) {
+  .skill-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+

@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone, SectionMarker } from '../components/primitives.jsx';
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handle = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, []);
+  return mobile;
+}
+
 // ABOUT PAGE - bio, education, summary
 // Layout: split poster — left half is portrait silhouette in halftone + geometric collage,
 // right half is structured information in stamped/typed cards.
@@ -8,7 +18,8 @@ import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, L
 export default function AboutPage() {
   const scrollRef = useRef(null);
   const progress = useScrollProgress(scrollRef);
-  const mouse = useMouseParallax(6);
+  const isMobile = useIsMobile();
+  const mouse = useMouseParallax(isMobile ? 0 : 6);
 
   return (
     <div ref={scrollRef} style={{
@@ -69,7 +80,7 @@ function AboutScene1({ progress, mouse }) {
       gridTemplateColumns: '0.9fr 1.1fr',
       transformStyle: 'preserve-3d',
       opacity: fade,
-    }}>
+    }} className="about-scene1-grid">
       {/* Left: portrait collage */}
       <div style={{
         position: 'relative',
@@ -169,6 +180,7 @@ function AboutScene1({ progress, mouse }) {
         gap: 20,
         transform: `translateX(${(1 - t) * 120}px)`,
         zIndex: 5,
+        overflowY: 'auto',
       }}>
         <div>
           <div className="label" style={{ color: 'var(--red)' }}>· IDENTIFICATION ·</div>
@@ -261,7 +273,7 @@ function AboutScene2({ progress, mouse }) {
         gridTemplateColumns: 'repeat(3, 1fr)',
         gap: 24,
         maxWidth: 1100,
-      }}>
+      }} className="about-edu-grid">
         {/* Timeline bar */}
         <div style={{
           position: 'absolute',
@@ -345,7 +357,7 @@ function AboutScene3({ progress, mouse }) {
         gap: 48,
         alignItems: 'center',
         maxWidth: 1200,
-      }}>
+      }} className="about-exp-grid">
         {/* Left: Big company callout */}
         <div style={{
           position: 'relative',
@@ -385,7 +397,7 @@ function AboutScene3({ progress, mouse }) {
           gap: 16,
           transform: `translateX(${(1 - t) * 80}px)`,
           opacity: t,
-        }}>
+        }} className="about-stat-grid">
           {[
             { n: '03', l: 'CORE STACK', v: 'React · NestJS · PG', c: 'var(--red)' },
             { n: 'API', l: 'INTEGRATIONS', v: 'Live FX · Gateway', c: 'var(--ink)' },

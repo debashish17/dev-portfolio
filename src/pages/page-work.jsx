@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handle = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, []);
+  return mobile;
+}
+
 // WORK / PROJECTS PAGE
 // Project cards that explode into deconstructed views on hover/click
 
@@ -65,7 +75,8 @@ const PROJECTS = [
 
 export default function WorkPage() {
   const [active, setActive] = useState(null);
-  const mouse = useMouseParallax(4);
+  const isMobile = useIsMobile();
+  const mouse = useMouseParallax(isMobile ? 0 : 4);
 
   return (
     <div className="paper-bg" style={{
@@ -75,7 +86,7 @@ export default function WorkPage() {
       <div className="grid-overlay" />
 
       {/* Header */}
-      <div style={{
+      <div className="work-header" style={{
         position: 'absolute',
         top: 32, left: 64, right: 64,
         display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
@@ -121,7 +132,7 @@ export default function WorkPage() {
       }} />
 
       {/* Project cards */}
-      <div style={{
+      <div className="work-cards-container" style={{
         position: 'absolute',
         top: 200, left: 64, right: 64, bottom: 64,
         display: 'flex',
@@ -159,6 +170,7 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
   return (
     <div
       data-magnet
+      className="work-project-card"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={onActivate}
@@ -314,7 +326,7 @@ function ProjectDetail({ project, onClose }) {
   }, []);
 
   return (
-    <div style={{
+    <div className="work-detail-overlay" style={{
       position: 'fixed',
       inset: 56,
       zIndex: 50,
@@ -357,7 +369,7 @@ function ProjectDetail({ project, onClose }) {
         transformStyle: 'preserve-3d',
       }}>
         {/* Piece 1: number plate - top left, smaller */}
-        <div style={{
+        <div className="work-detail-piece1" style={{
           position: 'absolute',
           top: 80, left: '5%',
           transform: `translateX(${(1 - t) * -200}px) translateZ(${t * 100}px) rotate(-3deg)`,
@@ -378,7 +390,7 @@ function ProjectDetail({ project, onClose }) {
         </div>
 
         {/* Piece 2: title slab - top center, between plate and metrics */}
-        <div style={{
+        <div className="work-detail-piece2" style={{
           position: 'absolute',
           top: 90, left: '28%', right: '32%',
           transform: `translateY(${(1 - t) * -100}px) translateZ(${t * 50}px) rotate(1deg)`,
@@ -393,7 +405,7 @@ function ProjectDetail({ project, onClose }) {
         </div>
 
         {/* Piece 4: metrics column - top right, narrower */}
-        <div style={{
+        <div className="work-detail-piece4" style={{
           position: 'absolute',
           right: '5%', top: 80,
           width: 200,
@@ -423,7 +435,7 @@ function ProjectDetail({ project, onClose }) {
         </div>
 
         {/* Piece 3: BRIEF - mid band, narrower (won't collide with metrics) */}
-        <div style={{
+        <div className="work-detail-piece3" style={{
           position: 'absolute',
           top: '46%', left: '5%', right: '32%',
           transform: `translateX(${(1 - t) * 200}px) translateZ(${t * 80}px)`,
@@ -437,7 +449,7 @@ function ProjectDetail({ project, onClose }) {
         </div>
 
         {/* Piece 5: stack chips - bottom band, full width */}
-        <div style={{
+        <div className="work-detail-piece5" style={{
           position: 'absolute',
           bottom: 32, left: '5%', right: '5%',
           transform: `translateY(${(1 - t) * 120}px) translateZ(${t * 40}px)`,

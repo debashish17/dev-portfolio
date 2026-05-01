@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
+
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handle = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, []);
+  return mobile;
+}
 // HOME / HERO PAGE
 // Multi-act scroll experience:
 //   Act 1 (0.0–0.25): Title assembles from flying shapes
@@ -11,7 +21,8 @@ export default function HomePage() {
   const scrollRef = useRef(null);
   const stageRef = useRef(null);
   const progress = useScrollProgress(scrollRef);
-  const mouse = useMouseParallax(8);
+  const isMobile = useIsMobile();
+  const mouse = useMouseParallax(isMobile ? 0 : 8);
   const { go } = useRoute();
 
   // On-mount intro animation
@@ -73,10 +84,15 @@ export default function HomePage() {
             <Act1Title t={a1} mouse={mouse} />
             <Act2Manifesto t={a2} mouse={mouse} progress={progress} />
             <Act3Skills t={a3} mouse={mouse} />
-            <Act4Exit t={a4} go={go} />
+            {/* Arrow bar decoration stays in 3D */}
+            <Act4Decor t={a4} />
           </div>
 
+          {/* Act4 CTA rendered OUTSIDE 3D canvas — flat overlay, reliable click events */}
+          <Act4Exit t={a4} go={go} />
 
+          {/* Mobile quick-nav: bypasses the 500vh scroll experience on small screens */}
+          <MobileQuickNav go={go} isMobile={isMobile} />
 
           {/* Progress dial */}
           <ProgressDial progress={progress} />
@@ -112,12 +128,7 @@ function CornerChrome({ progress, mouse }) {
         </div>
       </div>
 
-      {/* Bottom-right stamp */}
-      <div style={{
-        position: 'absolute', bottom: 24, right: 24, zIndex: 10,
-      }}>
-        <div className="stamp">CGPA · 8.52</div>
-      </div>
+
     </>
   );
 }
@@ -462,41 +473,93 @@ function Act3Skills({ t, mouse }) {
   );
 }
 
-// =================== ACT 4 : EXIT ===================
-function Act4Exit({ t, go }) {
+// =================== ACT 4 : DECORATIVE arrow (stays in 3D canvas) ===================
+function Act4Decor({ t }) {
   if (t <= 0) return null;
-
   return (
     <div style={{
       position: 'absolute', inset: 0,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
       transformStyle: 'preserve-3d',
-      transform: `translateZ(${1700}px)`,
+      transform: 'translateZ(1700px)',
       opacity: t,
+      pointerEvents: 'none',
     }}>
-      {/* Big arrow assembly */}
       <div style={{
         position: 'absolute',
         width: '80vw', height: 8,
         background: 'var(--red)',
-        top: '50%',
-        left: '10vw',
+        top: '50%', left: '10vw',
         transform: `scaleX(${easeOut(t)})`,
         transformOrigin: 'left',
       }} />
+    </div>
+  );
+}
 
-      <div style={{
-        position: 'relative',
-        textAlign: 'center',
-      }}>
+// =================== ACT 4 : EXIT CTA (flat 2D overlay — reliable hit-testing) ===================
+function Act4Exit({ t, go }) {
+  if (t <= 0) return null;
+  return (
+    <div style={{
+      position: 'absolute', inset: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 20,
+      pointerEvents: t > 0.3 ? 'auto' : 'none',
+      opacity: t,
+    }}>
+      <div style={{ position: 'relative', textAlign: 'center' }}>
         <div className="label" style={{ color: 'var(--red)', marginBottom: 16 }}>NEXT TRANSMISSION</div>
-        <div className="display" style={{ fontSize: 'clamp(60px, 9vw, 140px)', color: 'var(--ink)', marginBottom: 32 }}>
+        <div className="display" style={{ fontSize: 'clamp(44px, 9vw, 140px)', color: 'var(--ink)', marginBottom: 32, lineHeight: 0.85 }}>
           TO THE<br />WORK<span style={{ color: 'var(--red)' }}>.</span>
         </div>
-        <button className="btn-block clickable" onClick={() => go('work')}>
-          ENTER ARCHIVE
-          <span style={{ fontSize: 18 }}>→</span>
+        <button className="btn-block clickable" style={{ margin: '0 auto' }} onClick={() => go('work')}>
+          ENTER ARCHIVE <span style={{ fontSize: 18 }}>→</span>
         </button>
+      </div>
+    </div>
+  );
+}
+
+// =================== MOBILE QUICK NAV ===================
+function MobileQuickNav({ go, isMobile }) {
+  if (!isMobile) return null;
+  const sections = [
+    { id: 'about', label: 'ABOUT' },
+    { id: 'work', label: 'WORK' },
+    { id: 'achievements', label: 'HONOURS' },
+    { id: 'contact', label: 'TRANSMIT' },
+  ];
+  return (
+    <div style={{
+      position: 'absolute',
+      bottom: 0, left: 0, right: 0,
+      zIndex: 30,
+      background: 'var(--ink)',
+      borderTop: '2px solid var(--red)',
+      padding: '16px 20px 20px',
+    }}>
+      <div className="label" style={{ color: 'var(--red)', marginBottom: 12 }}>NAVIGATE</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {sections.map(s => (
+          <button key={s.id} onClick={() => go(s.id)} style={{
+            background: s.id === 'work' ? 'var(--red)' : 'transparent',
+            color: 'var(--cream)',
+            border: '1px solid rgba(242,234,211,0.3)',
+            padding: '12px 16px',
+            fontFamily: 'Archivo, sans-serif',
+            fontWeight: 700,
+            letterSpacing: '0.15em',
+            fontSize: 11,
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            textAlign: 'left',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            {s.label} <span style={{ opacity: 0.6 }}>→</span>
+          </button>
+        ))}
       </div>
     </div>
   );
