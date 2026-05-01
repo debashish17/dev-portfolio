@@ -21,7 +21,7 @@ export default function AboutPage() {
           position: 'sticky', top: 0,
           height: '100vh', width: '100%', overflow: 'hidden',
         }} className="paper-bg">
-          <div className="grid-overlay" />
+          <div className="grid-overlay" style={{ zIndex: 0 }} />
 
           {/* Camera move */}
           <div style={{
