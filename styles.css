@@ -1,0 +1,337 @@
+/* ============ CONSTRUCTIVIST DESIGN TOKENS ============ */
+:root {
+  --red: #D62828;
+  --red-deep: #9E1B1B;
+  --black: #0A0A0A;
+  --ink: #1A1714;
+  --cream: #F2EAD3;
+  --paper: #E8DEC2;
+  --ochre: #E8A33D;
+  --ochre-deep: #B97A1F;
+  --rust: #8B2E1F;
+  --grid-line: rgba(10,10,10,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: 'Archivo', 'Helvetica Neue', sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ============ TYPOGRAPHY ============ */
+.display {
+  font-family: 'Archivo Black', 'Arial Black', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.85;
+}
+
+.serif-display {
+  font-family: 'Bodoni Moda', 'Didot', serif;
+  font-weight: 900;
+  font-style: italic;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-feature-settings: 'ss01';
+}
+
+.label {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+}
+
+/* ============ PAPER TEXTURE ============ */
+.paper-bg {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(139,46,31,0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(10,10,10,0.03) 0%, transparent 50%),
+    var(--cream);
+  position: relative;
+}
+.paper-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 2px, rgba(10,10,10,0.012) 2px 3px),
+    repeating-linear-gradient(90deg, transparent 0 2px, rgba(10,10,10,0.012) 2px 3px);
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+/* ============ GRID OVERLAY ============ */
+.grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 80px 80px;
+  z-index: 1;
+}
+
+/* ============ NAV ============ */
+.nav-rail {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: var(--cream);
+  border-bottom: 2px solid var(--ink);
+  mix-blend-mode: normal;
+}
+
+.nav-mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.nav-mark-glyph {
+  width: 28px;
+  height: 28px;
+  background: var(--red);
+  position: relative;
+  transform: rotate(-15deg);
+}
+.nav-mark-glyph::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  background: var(--ink);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.nav-items {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  height: 100%;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  cursor: pointer;
+  position: relative;
+  color: var(--ink);
+  border-left: 1px solid rgba(10,10,10,0.15);
+  transition: color 0.2s;
+}
+.nav-item:last-child { border-right: 1px solid rgba(10,10,10,0.15); }
+.nav-item:hover { color: var(--red); }
+.nav-item.active {
+  background: var(--ink);
+  color: var(--cream);
+}
+.nav-item-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  margin-right: 8px;
+  opacity: 0.6;
+}
+
+.nav-clock {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+/* ============ STAGE / 3D SCENE ============ */
+.stage {
+  position: absolute;
+  inset: 56px 0 0 0;
+  perspective: 1800px;
+  perspective-origin: 50% 40%;
+  transform-style: preserve-3d;
+}
+
+.page-3d {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+/* ============ SHAPE PRIMITIVES ============ */
+.shape {
+  position: absolute;
+  will-change: transform;
+}
+.shape-circle { border-radius: 50%; }
+.shape-tri {
+  width: 0;
+  height: 0;
+  background: transparent !important;
+}
+
+/* ============ BUTTON ============ */
+.btn-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 22px;
+  background: var(--ink);
+  color: var(--cream);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+  position: relative;
+  transition: transform 0.2s;
+}
+.btn-block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--red);
+  z-index: -1;
+  transform: translate(6px, 6px);
+}
+.btn-block:hover { transform: translate(3px, 3px); }
+.btn-block:hover::after { transform: translate(0,0); }
+
+/* ============ ROUTE TRANSITION ============ */
+@keyframes slideInBar {
+  0% { transform: scaleX(0); transform-origin: left; }
+  50% { transform: scaleX(1); transform-origin: left; }
+  50.01% { transform-origin: right; }
+  100% { transform: scaleX(0); transform-origin: right; }
+}
+
+.transition-bar {
+  position: fixed;
+  z-index: 200;
+  background: var(--red);
+  pointer-events: none;
+}
+
+/* ============ SCROLLBAR HIDE ============ */
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ============ UTILITY ============ */
+.no-select { user-select: none; }
+.fill { position: absolute; inset: 0; }
+
+/* ============ STAR BURST ============ */
+.starburst {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: conic-gradient(
+    var(--red) 0deg, var(--red) 15deg,
+    transparent 15deg, transparent 30deg,
+    var(--red) 30deg, var(--red) 45deg,
+    transparent 45deg, transparent 60deg,
+    var(--red) 60deg, var(--red) 75deg,
+    transparent 75deg, transparent 90deg,
+    var(--red) 90deg, var(--red) 105deg,
+    transparent 105deg, transparent 120deg,
+    var(--red) 120deg, var(--red) 135deg,
+    transparent 135deg, transparent 150deg,
+    var(--red) 150deg, var(--red) 165deg,
+    transparent 165deg, transparent 180deg,
+    var(--red) 180deg, var(--red) 195deg,
+    transparent 195deg, transparent 210deg,
+    var(--red) 210deg, var(--red) 225deg,
+    transparent 225deg, transparent 240deg,
+    var(--red) 240deg, var(--red) 255deg,
+    transparent 255deg, transparent 270deg,
+    var(--red) 270deg, var(--red) 285deg,
+    transparent 285deg, transparent 300deg,
+    var(--red) 300deg, var(--red) 315deg,
+    transparent 315deg, transparent 330deg,
+    var(--red) 330deg, var(--red) 345deg,
+    transparent 345deg, transparent 360deg
+  );
+  border-radius: 50%;
+}
+
+/* ============ CURSOR ============ */
+.cursor-dot {
+  position: fixed;
+  width: 12px;
+  height: 12px;
+  background: var(--red);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+  transition: width 0.2s, height 0.2s;
+  transform: translate(-50%, -50%);
+}
+.cursor-dot.expanded {
+  width: 40px;
+  height: 40px;
+}
+
+/* ============ HALFTONE ============ */
+.halftone {
+  background-image: radial-gradient(circle, var(--ink) 1px, transparent 1.5px);
+  background-size: 6px 6px;
+}
+.halftone-red {
+  background-image: radial-gradient(circle, var(--red) 1.2px, transparent 1.8px);
+  background-size: 7px 7px;
+}
+
+/* ============ PAGE LAYOUT ============ */
+.page-inner {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* ============ STAMPS / SEALS ============ */
+.stamp {
+  border: 2px solid var(--red);
+  color: var(--red);
+  padding: 6px 10px;
+  font-family: 'Archivo', sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 10px;
+  display: inline-block;
+  transform: rotate(-4deg);
+}
+
+/* ============ LOADER ============ */
+.loader-stage {
+  position: fixed;
+  inset: 0;
+  background: var(--cream);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
