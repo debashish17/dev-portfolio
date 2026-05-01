@@ -44,3 +44,5 @@ screenshots/
 # Sensitive uploads — resumes, old pastes
 uploads/*.pdf
 uploads/pasted-*
+/docs
+

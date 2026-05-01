@@ -38,7 +38,9 @@ export default function AboutPage() {
           <div style={{
             position: 'absolute', inset: 0,
             transformStyle: 'preserve-3d',
-            transform: `translateZ(${-progress * 600}px) translateY(${-progress * 200}vh)`,
+            transform: isMobile
+              ? `translateY(${-progress * 200}vh)`
+              : `translateZ(${-progress * 600}px) translateY(${-progress * 200}vh)`,
           }}>
             <AboutScene1 progress={progress} mouse={mouse} />
             <AboutScene2 progress={progress} mouse={mouse} />
@@ -245,7 +247,7 @@ function AboutScene2({ progress, mouse }) {
   ];
 
   return (
-    <div style={{
+    <div className="about-scene2-inner" style={{
       position: 'absolute',
       inset: 0,
       top: '100vh',
@@ -258,7 +260,7 @@ function AboutScene2({ progress, mouse }) {
         <SectionMarker num="II.A" label="EDUCATION RECORD" />
       </div>
 
-      <div className="display" style={{
+      <div className="display about-edu-title" style={{
         fontSize: 'clamp(60px, 8vw, 120px)',
         marginBottom: 60,
         transform: `translateX(${(1 - t) * -100}px)`,
@@ -339,7 +341,7 @@ function AboutScene3({ progress, mouse }) {
   if (t <= 0) return null;
 
   return (
-    <div style={{
+    <div className="about-scene3-inner" style={{
       position: 'absolute',
       inset: 0,
       top: '200vh',
@@ -359,7 +361,7 @@ function AboutScene3({ progress, mouse }) {
         maxWidth: 1200,
       }} className="about-exp-grid">
         {/* Left: Big company callout */}
-        <div style={{
+        <div className="about-exp-left" style={{
           position: 'relative',
           padding: '48px 40px',
           background: 'var(--ink)',
@@ -397,7 +399,7 @@ function AboutScene3({ progress, mouse }) {
           gap: 16,
           transform: `translateX(${(1 - t) * 80}px)`,
           opacity: t,
-        }} className="about-stat-grid">
+        }} className="about-stat-grid about-exp-right">
           {[
             { n: '03', l: 'CORE STACK', v: 'React · NestJS · PG', c: 'var(--red)' },
             { n: 'API', l: 'INTEGRATIONS', v: 'Live FX · Gateway', c: 'var(--ink)' },

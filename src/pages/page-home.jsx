@@ -17,7 +17,7 @@ function useIsMobile() {
 //   Act 3 (0.55–0.85): Skill grid emerges, halftone portrait silhouette
 //   Act 4 (0.85–1.00): "Enter the work" exit ramp
 
-export default function HomePage() {
+function DesktopHomePage() {
   const scrollRef = useRef(null);
   const stageRef = useRef(null);
   const progress = useScrollProgress(scrollRef);
@@ -598,6 +598,363 @@ function ProgressDial({ progress }) {
       </div>
     </div>
   );
+}
+
+// =================== MOBILE REVEAL HOOK ===================
+function useMobileReveal(threshold = 0.2) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return [ref, visible];
+}
+
+// =================== MOBILE HOME PAGE ===================
+function MobileHomePage() {
+  const { go } = useRoute();
+  return (
+    <div data-mobile-scroll style={{
+      position: 'absolute', inset: 0,
+      overflowY: 'auto', overflowX: 'hidden',
+    }}>
+      <MobileHeroSection />
+      <MobileManifestoSection />
+      <MobileSkillsSection />
+      <MobileQuickNav go={go} isMobile={true} />
+    </div>
+  );
+}
+
+function MobileHeroSection() {
+  const [introT, setIntroT] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    let raf;
+    const start = performance.now();
+    const tick = (now) => {
+      const dt = Math.min(1, (now - start) / 1200);
+      setIntroT(easeOut(dt));
+      if (dt < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    const container = document.querySelector('[data-mobile-scroll]');
+    if (!container) return;
+    const handle = () => setScrolled(container.scrollTop > 50);
+    container.addEventListener('scroll', handle, { passive: true });
+    return () => container.removeEventListener('scroll', handle);
+  }, []);
+
+  const lines = ['DIBYA', 'DEBASHISH', 'BHOI'];
+
+  return (
+    <div className="paper-bg" style={{
+      position: 'relative',
+      minHeight: '100svh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      padding: '80px 24px 140px',
+    }}>
+      <div className="grid-overlay" />
+
+      {/* Top-left label */}
+      <div style={{ position: 'absolute', top: 16, left: 20, zIndex: 10 }}>
+        <div className="label" style={{ color: 'var(--red)', fontSize: 9 }}>FOLIO № I</div>
+      </div>
+
+      {/* Big red circle behind name */}
+      <div style={{
+        position: 'absolute',
+        width: '80vw', height: '80vw',
+        maxWidth: 360, maxHeight: 360,
+        borderRadius: '50%',
+        background: 'var(--red)',
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -54%)',
+        zIndex: 1,
+      }} />
+
+      {/* Black wedge */}
+      <div style={{
+        position: 'absolute',
+        width: '56vw', height: '28vw',
+        maxWidth: 260, maxHeight: 130,
+        background: 'var(--ink)',
+        borderRadius: '50vw 50vw 0 0',
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -90%)',
+        transformOrigin: 'bottom',
+        zIndex: 2,
+      }} />
+
+      {/* Name */}
+      <div style={{
+        position: 'relative',
+        zIndex: 5,
+        textAlign: 'center',
+        fontFamily: 'Archivo Black, sans-serif',
+        fontWeight: 900,
+        textTransform: 'uppercase',
+        letterSpacing: '-0.04em',
+        lineHeight: 0.85,
+      }}>
+        {lines.map((line, li) => {
+          const lt = clamp(remap(introT, li * 0.15, 0.4 + li * 0.15, 0, 1), 0, 1);
+          const size = li === 1 ? 'clamp(52px, 13vw, 80px)' : 'clamp(60px, 15vw, 90px)';
+          return (
+            <div key={li} style={{
+              fontSize: size,
+              color: 'var(--ink)',
+              transform: `translateX(${(1 - lt) * (li % 2 ? 60 : -60)}px)`,
+              opacity: lt,
+            }}>
+              {line}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Subtitle */}
+      <div className="label" style={{
+        position: 'relative', zIndex: 5,
+        color: 'var(--cream)',
+        background: 'var(--ink)',
+        padding: '6px 14px',
+        marginTop: 20,
+        opacity: introT,
+      }}>
+        BUILDER · CSE · INDIA
+      </div>
+
+      {/* Scroll hint */}
+      <div style={{
+        position: 'absolute',
+        bottom: 88,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+        opacity: scrolled ? 0 : introT,
+        transition: 'opacity 0.4s',
+        pointerEvents: 'none',
+        zIndex: 10,
+      }}>
+        <div className="mono" style={{ fontSize: 9, letterSpacing: '0.3em', opacity: 0.6 }}>SCROLL</div>
+        <svg width="16" height="24" viewBox="0 0 16 24" fill="none" style={{ animation: 'mobileScrollBounce 1.6s ease-in-out infinite' }}>
+          <path d="M8 2 L8 18 M3 13 L8 18 L13 13" stroke="var(--ink)" strokeWidth="2" strokeLinecap="square"/>
+        </svg>
+        <style>{`@keyframes mobileScrollBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(5px); } }`}</style>
+      </div>
+    </div>
+  );
+}
+
+function MobileManifestoSection() {
+  const [ref, visible] = useMobileReveal(0.2);
+  return (
+    <div ref={ref} style={{
+      position: 'relative',
+      minHeight: '100svh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '60px 24px',
+      overflow: 'hidden',
+    }} className="paper-bg">
+      <div className="grid-overlay" />
+
+      {/* Decorative red disc top-right */}
+      <div style={{
+        position: 'absolute',
+        top: -40, right: -40,
+        width: '40vw', height: '40vw',
+        maxWidth: 180, maxHeight: 180,
+        borderRadius: '50%',
+        background: 'var(--red)',
+        opacity: 0.5,
+        pointerEvents: 'none',
+      }} />
+      {/* Halftone slab bottom-left */}
+      <div style={{
+        position: 'absolute',
+        bottom: 60, left: -20,
+        width: '30vw', height: '40vw',
+        maxWidth: 130, maxHeight: 180,
+        backgroundImage: 'radial-gradient(circle, var(--ink) 1.4px, transparent 2px)',
+        backgroundSize: '7px 7px',
+        opacity: 0.3,
+        pointerEvents: 'none',
+      }} />
+
+      {/* Manifesto card */}
+      <div style={{
+        position: 'relative', zIndex: 5,
+        width: '100%',
+        maxWidth: 520,
+        padding: '28px 24px',
+        background: 'var(--cream)',
+        border: '3px solid var(--ink)',
+        boxShadow: '8px 8px 0 var(--red)',
+        transform: visible ? 'translateY(0) rotate(-1deg)' : 'translateY(40px) rotate(-1deg)',
+        opacity: visible ? 1 : 0,
+        transition: 'transform 0.6s cubic-bezier(.2,0,.2,1), opacity 0.6s ease',
+      }}>
+        <div className="label" style={{ color: 'var(--red)', marginBottom: 18 }}>· MANIFESTO ·</div>
+        <div style={{
+          fontFamily: 'Archivo Black, sans-serif',
+          fontSize: 'clamp(22px, 5.5vw, 36px)',
+          lineHeight: 1.1,
+          textTransform: 'uppercase',
+          letterSpacing: '-0.02em',
+        }}>
+          I build <span style={{ color: 'var(--red)' }}>intelligent</span> systems —
+          <br />from <span style={{ background: 'var(--ink)', color: 'var(--cream)', padding: '0 5px' }}>L·L·M</span> vulnerability detectors
+          <br />to <span style={{ textDecoration: 'underline', textDecorationColor: 'var(--red)', textDecorationThickness: 4 }}>real-time</span> collaboration platforms.
+        </div>
+        <div style={{
+          marginTop: 24,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+        }}>
+          <div className="mono" style={{ fontSize: 11, opacity: 0.6 }}>
+            VIT-AP · CSE · 2022—<br />Mego Forex · Full-Stack
+          </div>
+          <div style={{
+            width: 44, height: 44,
+            background: 'var(--ochre)',
+            clipPath: 'polygon(50% 0, 100% 100%, 0 100%)',
+          }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileSkillsSection() {
+  const [ref, visible] = useMobileReveal(0.15);
+
+  const skills = [
+    { name: 'REACT', cat: 'WEB' },
+    { name: 'TYPESCRIPT', cat: 'WEB' },
+    { name: 'NODEJS', cat: 'RUNTIME' },
+    { name: 'FASTAPI', cat: 'API' },
+    { name: 'NESTJS', cat: 'API' },
+    { name: 'POSTGRES', cat: 'DATA' },
+    { name: 'DOCKER', cat: 'OPS' },
+    { name: 'PYTHON', cat: 'CORE' },
+    { name: 'WEBRTC', cat: 'REALTIME' },
+    { name: 'LANGCHAIN', cat: 'AI' },
+    { name: 'NEXTJS', cat: 'WEB' },
+    { name: 'MONGODB', cat: 'DATA' },
+  ];
+
+  return (
+    <div ref={ref} style={{
+      position: 'relative',
+      minHeight: '100svh',
+      padding: '60px 20px 130px',
+      overflow: 'hidden',
+    }} className="paper-bg">
+      <div className="grid-overlay" />
+
+      {/* Decorative shapes */}
+      <div style={{
+        position: 'absolute',
+        top: 20, left: -20,
+        width: '30vw', height: '30vw',
+        maxWidth: 120, maxHeight: 120,
+        background: 'var(--ink)',
+        transform: 'rotate(15deg)',
+        opacity: 0.7,
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: 10, right: -10,
+        width: 0, height: 0,
+        borderTop: '60px solid var(--ochre)',
+        borderLeft: '60px solid transparent',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: 140, right: -40,
+        width: '40vw', height: '40vw',
+        maxWidth: 180, maxHeight: 180,
+        borderRadius: '50%',
+        background: 'var(--red)',
+        opacity: 0.5,
+        pointerEvents: 'none',
+      }} />
+
+      {/* Title */}
+      <div style={{
+        position: 'relative', zIndex: 5,
+        textAlign: 'center',
+        marginBottom: 32,
+        transform: visible ? 'translateY(0)' : 'translateY(30px)',
+        opacity: visible ? 1 : 0,
+        transition: 'transform 0.5s cubic-bezier(.2,0,.2,1), opacity 0.5s ease',
+      }}>
+        <div className="label" style={{ color: 'var(--red)', marginBottom: 10 }}>SECTION III · INSTRUMENTS</div>
+        <div className="display" style={{ fontSize: 'clamp(40px, 10vw, 64px)', color: 'var(--ink)' }}>
+          THE TOOLBOX
+        </div>
+      </div>
+
+      {/* Skill grid — 2 columns */}
+      <div style={{
+        position: 'relative', zIndex: 5,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: 0,
+        border: '3px solid var(--ink)',
+        background: 'var(--ink)',
+      }}>
+        {skills.map((s, i) => {
+          const isRed = i % 7 === 3;
+          const delay = `${i * 0.04}s`;
+          return (
+            <div key={s.name} style={{
+              padding: '20px 14px',
+              background: isRed ? 'var(--red)' : 'var(--cream)',
+              color: isRed ? 'var(--cream)' : 'var(--ink)',
+              border: '1px solid var(--ink)',
+              transform: visible ? 'translateY(0)' : 'translateY(40px)',
+              opacity: visible ? 1 : 0,
+              transition: `transform 0.5s cubic-bezier(.2,0,.2,1) ${delay}, opacity 0.5s ease ${delay}`,
+            }}>
+              <div className="mono" style={{ fontSize: 8, opacity: 0.5, marginBottom: 5 }}>
+                {String(i + 1).padStart(2, '0')} · {s.cat}
+              </div>
+              <div className="display" style={{ fontSize: 15, letterSpacing: '-0.02em' }}>
+                {s.name}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileHomePage /> : <DesktopHomePage />;
 }
 
 window.HomePage = HomePage;

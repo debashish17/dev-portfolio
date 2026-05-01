@@ -57,7 +57,7 @@ export default function ContactPage() {
       <div className="grid-overlay" />
 
       {/* Header */}
-      <div style={{ position: 'absolute', top: 32, left: 64, zIndex: 5 }}>
+      <div className="contact-page-header" style={{ position: 'absolute', top: 32, left: 64, zIndex: 5 }}>
         <div className="label" style={{ color: 'var(--red)' }}>FOLIO № V · TRANSMIT</div>
       </div>
 

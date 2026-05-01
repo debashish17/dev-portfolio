@@ -444,24 +444,48 @@ html, body {
   .about-scene1-grid {
     grid-template-columns: 1fr !important;
     grid-template-rows: auto auto;
+    overflow: hidden;
   }
   .about-scene1-grid > :first-child {
     height: 320px;
     min-height: 0;
+    overflow: hidden;
   }
   .about-scene1-grid > :last-child {
     padding: 24px 20px !important;
+    overflow-y: auto;
   }
-  /* Scene 2 & 3: single column */
+  /* Scene 1 name font — 5.5vw is tiny on mobile, clamp's min handles it */
+  .about-scene1-grid .display {
+    font-size: clamp(36px, 10vw, 72px) !important;
+  }
+  /* Scene 2: single column, reduce title size, fix padding */
   .about-edu-grid {
     grid-template-columns: 1fr !important;
+    gap: 16px !important;
   }
+  .about-scene2-inner {
+    padding: 40px 20px !important;
+  }
+  /* Scene 2 title — 60px minimum overflows on 375px at desktop size */
+  .about-edu-title {
+    font-size: clamp(36px, 10vw, 72px) !important;
+  }
+  /* Scene 3: single column, reduce padding */
   .about-exp-grid {
     grid-template-columns: 1fr !important;
-    gap: 24px !important;
+    gap: 20px !important;
+  }
+  .about-scene3-inner {
+    padding: 40px 20px !important;
   }
   .about-stat-grid {
     grid-template-columns: 1fr 1fr !important;
+  }
+  /* Remove translateX slide-in that goes outside viewport on mobile */
+  .about-exp-left,
+  .about-exp-right {
+    transform: none !important;
   }
 }
 
@@ -484,7 +508,7 @@ html, body {
   }
   .work-project-card {
     flex: none !important;
-    min-height: 180px;
+    min-height: 160px !important;
     transform: none !important;
     opacity: 1 !important;
   }
@@ -493,22 +517,53 @@ html, body {
     overflow-y: auto !important;
     padding-bottom: 32px;
   }
-  .work-detail-piece1 { position: relative !important; top: auto !important; left: auto !important; margin: 16px 16px 0 !important; width: auto !important; }
-  .work-detail-piece2 { position: relative !important; top: auto !important; left: auto !important; right: auto !important; margin: 16px 16px 0 !important; }
-  .work-detail-piece4 { position: relative !important; top: auto !important; right: auto !important; left: auto !important; width: auto !important; margin: 16px 16px 0 !important; }
-  .work-detail-piece3 { position: relative !important; top: auto !important; left: auto !important; right: auto !important; margin: 16px 16px 0 !important; }
-  .work-detail-piece5 { position: relative !important; bottom: auto !important; left: auto !important; right: auto !important; margin: 16px 16px !important; }
+  .work-detail-piece1 { position: relative !important; top: auto !important; left: auto !important; margin: 16px 16px 0 !important; width: auto !important; transform: none !important; }
+  .work-detail-piece2 { position: relative !important; top: auto !important; left: auto !important; right: auto !important; margin: 16px 16px 0 !important; transform: none !important; }
+  .work-detail-piece4 { position: relative !important; top: auto !important; right: auto !important; left: auto !important; width: auto !important; margin: 16px 16px 0 !important; transform: none !important; }
+  .work-detail-piece3 { position: relative !important; top: auto !important; left: auto !important; right: auto !important; margin: 16px 16px 0 !important; transform: none !important; }
+  .work-detail-piece5 { position: relative !important; bottom: auto !important; left: auto !important; right: auto !important; margin: 16px 16px !important; transform: none !important; }
+  /* Stack chips wrap */
+  .work-detail-piece5 > div > div {
+    flex-wrap: wrap !important;
+  }
+  /* Close button tap target */
+  .work-detail-overlay > button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
 }
 
 /* ============ PAGE — CONTACT mobile ============ */
 @media (max-width: 768px) {
   .contact-grid {
     grid-template-columns: 1fr !important;
-    top: 80px !important;
-    gap: 32px !important;
+    top: 72px !important;
+    left: 16px !important;
+    right: 16px !important;
+    gap: 24px !important;
     overflow-y: auto !important;
     bottom: 0 !important;
     padding-bottom: 40px !important;
+  }
+  /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
+  .contact-grid input,
+  .contact-grid textarea,
+  .contact-grid select {
+    font-size: 16px !important;
+  }
+  /* Big "LET'S BUILD" title — shrink on mobile */
+  .contact-grid .display {
+    font-size: clamp(44px, 12vw, 80px) !important;
+  }
+  /* Contact rows: shrink label column and value text to fit */
+  .contact-grid a,
+  .contact-grid div[style*="gridTemplateColumns"] {
+    overflow: hidden;
+  }
+  /* Header "FOLIO № V" top-left — reduce indent */
+  .contact-page-header {
+    top: 16px !important;
+    left: 20px !important;
   }
 }
 
@@ -519,15 +574,16 @@ html, body {
     grid-template-rows: auto auto auto;
     padding: 0 20px !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     align-content: start !important;
-    padding-top: 100px !important;
-    gap: 48px !important;
+    padding-top: 80px !important;
+    gap: 32px !important;
   }
   .achievements-medal {
     display: none !important;
   }
   .achievements-title {
-    font-size: clamp(40px, 12vw, 80px) !important;
+    font-size: clamp(36px, 10vw, 60px) !important;
   }
   .achievements-bottom {
     left: 20px !important;
@@ -541,6 +597,13 @@ html, body {
 @media (max-width: 600px) {
   .skill-grid {
     grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ============ GLOBAL TOUCH TARGETS ============ */
+@media (max-width: 768px) {
+  button, [role="button"] {
+    min-height: 44px;
   }
 }
 
