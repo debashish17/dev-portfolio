@@ -48,12 +48,12 @@ export default function AchievementsPage() {
       <div className="grid-overlay" />
 
       {/* Header */}
-      <div style={{ position: 'absolute', top: 32, left: 64, zIndex: 5 }}>
+      <div className="achievements-page-header" style={{ position: 'absolute', top: 'var(--pad-y)', left: 'var(--pad-x)', zIndex: 5 }}>
         <div className="label" style={{ color: 'var(--red)' }}>FOLIO № IV · HONOURS</div>
       </div>
 
       {/* Background propaganda rays from top-right */}
-      <div style={{
+      <div className="achievements-rays" style={{
         position: 'absolute',
         top: -200, right: -200,
         width: 1200, height: 1200,
@@ -122,9 +122,9 @@ export default function AchievementsPage() {
       </div>
 
       {/* Big title behind/around */}
-      <div style={{
+      <div className="achievements-title-bg" style={{
         position: 'absolute',
-        top: 110, left: 64, right: 64,
+        top: 110, left: 'var(--pad-x)', right: 'var(--pad-x)',
         textAlign: 'center',
         pointerEvents: 'none',
       }}>
@@ -146,7 +146,7 @@ export default function AchievementsPage() {
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : '1fr 440px 1fr',
         alignItems: isMobile ? 'start' : 'center',
-        padding: isMobile ? '100px 36px 80px 24px' : '0 64px',
+        padding: isMobile ? '100px 36px 80px 24px' : '0 var(--pad-x)',
         gap: isMobile ? 56 : 32,
         overflowY: 'visible',
         overflowX: 'visible',
@@ -177,7 +177,7 @@ export default function AchievementsPage() {
       {/* Bottom strip - quote — hidden on mobile (cards scroll past it) */}
       <div className="achievements-bottom" style={{
         position: 'absolute',
-        bottom: 32, left: 64, right: 64,
+        bottom: 'var(--pad-y)', left: 'var(--pad-x)', right: 'var(--pad-x)',
         display: isMobile ? 'none' : 'flex',
         justifyContent: 'space-between', alignItems: 'flex-end',
       }}>
@@ -242,7 +242,7 @@ function AchievementCard({ a, align, rotate, isHovered, onHover, isMobile }) {
       }}>
         {/* Place badge — absolute on desktop, flows at top on mobile */}
         <div style={{
-          position: isMobile ? 'absolute' : 'absolute',
+          position: 'absolute',
           top: isMobile ? -28 : -24,
           left: isMobile ? 16 : -24,
           width: 72, height: 72,

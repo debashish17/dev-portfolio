@@ -57,12 +57,12 @@ export default function ContactPage() {
       <div className="grid-overlay" />
 
       {/* Header */}
-      <div className="contact-page-header" style={{ position: 'absolute', top: 32, left: 64, zIndex: 5 }}>
+      <div className="contact-page-header" style={{ position: 'absolute', top: 'var(--pad-y)', left: 'var(--pad-x)', zIndex: 5 }}>
         <div className="label" style={{ color: 'var(--red)' }}>FOLIO № V · TRANSMIT</div>
       </div>
 
       {/* Background giant ring */}
-      <div style={{
+      <div className="contact-decor-ring" style={{
         position: 'absolute',
         right: -300, top: -200,
         width: 800, height: 800,
@@ -71,7 +71,7 @@ export default function ContactPage() {
         opacity: 0.1,
         transform: `translate(${mouse.x * 4}px, ${mouse.y * 4}px)`,
       }} />
-      <div style={{
+      <div className="contact-decor-circle" style={{
         position: 'absolute',
         left: -120, bottom: -120,
         width: 380, height: 380,
@@ -88,7 +88,7 @@ export default function ContactPage() {
         pointerEvents: 'none',
         textAlign: 'center',
       }}>
-        <div className="display" style={{
+        <div className="display contact-bg-title" style={{
           fontSize: 'clamp(140px, 20vw, 320px)',
           color: 'var(--ink)',
           letterSpacing: '-0.06em',
@@ -102,10 +102,10 @@ export default function ContactPage() {
       {/* Two column layout */}
       <div className="contact-grid" style={{
         position: 'absolute',
-        top: 100, bottom: 80, left: 64, right: 64,
+        top: 100, bottom: 80, left: 'var(--pad-x)', right: 'var(--pad-x)',
         display: 'grid',
         gridTemplateColumns: '1.1fr 1fr',
-        gap: 64,
+        gap: 'clamp(32px, 5vw, 64px)',
         alignItems: 'center',
       }}>
         {/* LEFT: contact details */}
@@ -154,7 +154,7 @@ export default function ContactPage() {
             background: 'var(--red)',
             transform: 'translate(14px, 14px)',
           }} />
-          <div style={{
+          <div className="contact-transmit-card" style={{
             position: 'relative',
             background: 'var(--ink)',
             color: 'var(--cream)',
@@ -280,6 +280,7 @@ function ContactRow({ label, value, href }) {
       href={href}
       target={href && href.startsWith('http') ? '_blank' : undefined}
       data-magnet={href ? '' : undefined}
+      className="contact-row"
       style={{
         display: 'grid',
         gridTemplateColumns: '90px 1fr 24px',
@@ -304,7 +305,7 @@ function ContactRow({ label, value, href }) {
       }}
     >
       <div className="label" style={{ color: 'var(--red)' }}>{label}</div>
-      <div style={{
+      <div className="contact-row-value" style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: 14,
         fontWeight: 600,

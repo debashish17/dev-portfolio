@@ -10,6 +10,23 @@
   --ochre-deep: #B97A1F;
   --rust: #8B2E1F;
   --grid-line: rgba(10,10,10,0.08);
+
+  /* Layout insets — scale proportionally with viewport */
+  --pad-x: clamp(20px, 4vw, 64px);
+  --pad-y: clamp(20px, 3vw, 40px);
+}
+
+/* Small desktop / large tablet — tighten padding */
+@media (max-width: 1280px) and (min-width: 769px) {
+  :root { --pad-x: clamp(24px, 3.5vw, 48px); }
+}
+
+/* Ultra-wide — let content breathe more */
+@media (min-width: 1600px) {
+  :root {
+    --pad-x: clamp(64px, 5vw, 120px);
+    --pad-y: clamp(40px, 3.5vw, 64px);
+  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -565,6 +582,28 @@ html, body {
     top: 16px !important;
     left: 20px !important;
   }
+  /* Hide decorative rings — they overflow the viewport */
+  .contact-decor-ring,
+  .contact-decor-circle {
+    display: none !important;
+  }
+  /* Transmission card — tighter padding on mobile */
+  .contact-transmit-card {
+    padding: 24px 20px !important;
+  }
+  /* Contact rows — narrower label column, smaller value font */
+  .contact-row {
+    grid-template-columns: 70px 1fr 20px !important;
+    gap: 12px !important;
+  }
+  .contact-row-value {
+    font-size: 12px !important;
+    word-break: break-all;
+  }
+  /* Big "TRANSMIT" backdrop title — keep visible but shrink */
+  .contact-bg-title {
+    font-size: clamp(60px, 18vw, 140px) !important;
+  }
 }
 
 /* ============ PAGE — ACHIEVEMENTS mobile ============ */
@@ -577,10 +616,21 @@ html, body {
     overflow-x: hidden !important;
     align-content: start !important;
     padding-top: 80px !important;
+    padding-bottom: 80px !important;
     gap: 32px !important;
   }
   .achievements-medal {
     display: none !important;
+  }
+  .achievements-title-bg {
+    display: none !important;
+  }
+  .achievements-rays {
+    display: none !important;
+  }
+  .achievements-page-header {
+    top: 16px !important;
+    left: 20px !important;
   }
   .achievements-title {
     font-size: clamp(36px, 10vw, 60px) !important;
