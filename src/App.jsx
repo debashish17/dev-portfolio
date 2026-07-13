@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { RouteContext, useRoute, CustomCursor, LogoMark, LiveClock } from './components/primitives.jsx';
+import { initAnalytics, trackPageView } from './lib/analytics.js';
 import Loader from './components/loader.jsx';
 import HomePage from './pages/page-home.jsx';
 import AboutPage from './pages/page-about.jsx';
@@ -15,8 +17,14 @@ function App() {
   const [transitioning, setTransitioning] = useState(false);
   const [pendingRoute, setPendingRoute] = useState(null);
 
+  useEffect(() => {
+    initAnalytics();
+    trackPageView('home');
+  }, []);
+
   const go = useCallback((next) => {
     if (next === route || transitioning) return;
+    trackPageView(next);
     setTransitioning(true);
     setPendingRoute(next);
     setTimeout(() => {
@@ -45,6 +53,8 @@ function App() {
 
       {/* Page transition curtain */}
       {transitioning && <TransitionCurtain pendingRoute={pendingRoute} />}
+
+      <Analytics />
     </RouteContext.Provider>
   );
 }
