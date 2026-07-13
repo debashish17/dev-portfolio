@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, useScroll, useSpring, useTransform, useMotionValue, useMotionTemplate, useMotionValueEvent, animate } from 'motion/react';
-import { useRoute, easeOut, easeInOut, clamp, remap } from '../components/primitives.jsx';
+import { useRoute, easeOut, easeInOut, easeIn, backOut, seg, clamp, remap } from '../components/primitives.jsx';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
@@ -18,19 +18,10 @@ function useIsMobile() {
 //   Act 3 (0.55–0.85): Skill grid emerges, halftone portrait silhouette
 //   Act 4 (0.85–1.00): "Enter the work" exit ramp
 
-// --- kinetic transition helpers ---
-// Acts hand off with staggered per-element motion instead of crossfades:
-// every element enters/exits by translate/rotate/scale on its own sub-window
-// of the act's progress, so transitions scrub cleanly in both directions.
-const seg = (v, from, to, ease) => {
-  const x = clamp(remap(v, from, to, 0, 1), 0, 1);
-  return ease ? ease(x) : x;
-};
-const easeIn = (t) => t * t * t;
-const backOut = (t) => {
-  const c1 = 1.70158, c3 = c1 + 1;
-  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-};
+// Acts hand off with staggered per-element motion (seg/easeIn/backOut from
+// primitives) instead of crossfades: every element enters/exits by
+// translate/rotate/scale on its own sub-window of the act's progress, so
+// transitions scrub cleanly in both directions.
 
 // All per-frame animation runs on MotionValues: scroll, mouse and intro write
 // straight to the DOM via motion.div, so React never re-renders during

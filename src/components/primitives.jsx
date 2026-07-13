@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from 'react';
+import { useMotionValue } from 'motion/react';
 // Shared geometric primitives & utilities
 // Constructivist building blocks: circles, triangles, bars, halftones
 
@@ -201,6 +202,27 @@ export function useMouseParallax(strength = 1) {
   return pos;
 }
 
+// ---------- MOUSE PARALLAX HOOK (MotionValue version) ----------
+// Same values/feel as useMouseParallax, but writes to MotionValues so
+// consuming pages don't re-render on every mousemove. Use with motion.div
+// + useTransform for the few decorative elements that track the pointer.
+export function useMouseParallaxMV(strength = 1) {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  useEffect(() => {
+    if (!strength) { x.set(0); y.set(0); return; }
+    const handle = (e) => {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      x.set(((e.clientX - cx) / cx) * strength);
+      y.set(((e.clientY - cy) / cy) * strength);
+    };
+    window.addEventListener('mousemove', handle);
+    return () => window.removeEventListener('mousemove', handle);
+  }, [strength, x, y]);
+  return { x, y };
+}
+
 // ---------- SCROLL HOOK ----------
 export function useScrollProgress(ref) {
   const [progress, setProgress] = useState(0);
@@ -225,6 +247,17 @@ export const remap = (v, inMin, inMax, outMin, outMax) =>
   outMin + ((v - inMin) / (inMax - inMin)) * (outMax - outMin);
 export const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 export const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+export const easeIn = (t) => t * t * t;
+export const backOut = (t) => {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
+// Maps v through the [from, to] sub-window to 0-1 (clamped), optionally eased.
+// The building block for scroll-choreographed enter/exit staggering.
+export const seg = (v, from, to, ease) => {
+  const x = clamp(remap(v, from, to, 0, 1), 0, 1);
+  return ease ? ease(x) : x;
+};
 
 // ---------- LIVE CLOCK ----------
 export function LiveClock() {
