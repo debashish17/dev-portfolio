@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
+import { motion, useScroll, useSpring, useTransform, useMotionValue, useMotionTemplate, useMotionValueEvent, animate } from 'motion/react';
+import { useRoute, easeOut, clamp, remap } from '../components/primitives.jsx';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
@@ -17,38 +18,48 @@ function useIsMobile() {
 //   Act 3 (0.55–0.85): Skill grid emerges, halftone portrait silhouette
 //   Act 4 (0.85–1.00): "Enter the work" exit ramp
 
+// All per-frame animation runs on MotionValues: scroll, mouse and intro write
+// straight to the DOM via motion.div, so React never re-renders during
+// scrolling or mouse movement. The spring on scroll progress smooths the
+// discrete wheel steps that used to make acts snap.
 function DesktopHomePage() {
   const scrollRef = useRef(null);
-  const stageRef = useRef(null);
-  const progress = useScrollProgress(scrollRef);
-  const isMobile = useIsMobile();
-  const mouse = useMouseParallax(isMobile ? 0 : 8);
   const { go } = useRoute();
 
+  const { scrollYProgress } = useScroll({ container: scrollRef });
+  const progress = useSpring(scrollYProgress, { stiffness: 110, damping: 26, mass: 0.5, restDelta: 0.0005 });
+
   // On-mount intro animation
-  const [intro, setIntro] = useState(1);
+  const intro = useMotionValue(0);
   useEffect(() => {
-    setIntro(0);
-    let raf;
-    const start = performance.now();
-    const tick = (now) => {
-      const dt = Math.min(1, (now - start) / 1200);
-      setIntro(easeOut(dt));
-      if (dt < 1) raf = requestAnimationFrame(tick);
+    const controls = animate(intro, 1, { duration: 1.2, ease: easeOut });
+    return () => controls.stop();
+  }, [intro]);
+
+  // Mouse parallax — springs keep the drift smooth even with high-rate mice
+  const rawMx = useMotionValue(0);
+  const rawMy = useMotionValue(0);
+  useEffect(() => {
+    const handle = (e) => {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      rawMx.set(((e.clientX - cx) / cx) * 8);
+      rawMy.set(((e.clientY - cy) / cy) * 8);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    window.addEventListener('mousemove', handle);
+    return () => window.removeEventListener('mousemove', handle);
+  }, [rawMx, rawMy]);
+  const mx = useSpring(rawMx, { stiffness: 140, damping: 18, mass: 0.4 });
+  const my = useSpring(rawMy, { stiffness: 140, damping: 18, mass: 0.4 });
 
   // Act timing — a1 is visible immediately (intro), fades out as scroll begins
-  const a1 = Math.max(intro, 0.001) * clamp(1 - remap(progress, 0.15, 0.30, 0, 1), 0, 1);
-  const a2 = clamp(remap(progress, 0.20, 0.55, 0, 1), 0, 1);
-  const a3 = clamp(remap(progress, 0.50, 0.85, 0, 1), 0, 1);
-  const a4 = clamp(remap(progress, 0.80, 1.00, 0, 1), 0, 1);
+  const a1 = useTransform(() => Math.max(intro.get(), 0.001) * clamp(1 - remap(progress.get(), 0.15, 0.30, 0, 1), 0, 1));
+  const a2 = useTransform(() => clamp(remap(progress.get(), 0.20, 0.55, 0, 1), 0, 1));
+  const a3 = useTransform(() => clamp(remap(progress.get(), 0.50, 0.85, 0, 1), 0, 1));
+  const a4 = useTransform(() => clamp(remap(progress.get(), 0.80, 1.00, 0, 1), 0, 1));
 
   // Camera moves through Z based on scroll
-  const cameraZ = progress * 1200;
-  const cameraRotX = progress * -8;
+  const cameraTransform = useTransform(() => `translateZ(${-progress.get() * 1200}px) rotateX(${progress.get() * -8}deg)`);
 
   return (
     <div ref={scrollRef} style={{
@@ -60,7 +71,7 @@ function DesktopHomePage() {
       {/* Tall scroll spacer */}
       <div style={{ height: '500vh', position: 'relative' }}>
         {/* Sticky stage */}
-        <div ref={stageRef} style={{
+        <div style={{
           position: 'sticky',
           top: 0,
           height: '100vh',
@@ -72,27 +83,23 @@ function DesktopHomePage() {
           <div className="grid-overlay" />
 
           {/* Persistent corner blocks */}
-          <CornerChrome progress={progress} mouse={mouse} />
+          <CornerChrome progress={progress} />
 
           {/* The 3D canvas */}
-          <div style={{
+          <motion.div style={{
             position: 'absolute', inset: 0,
             transformStyle: 'preserve-3d',
-            transform: `translateZ(${-cameraZ}px) rotateX(${cameraRotX}deg)`,
-            transition: 'none',
+            transform: cameraTransform,
           }}>
-            <Act1Title t={a1} mouse={mouse} />
-            <Act2Manifesto t={a2} mouse={mouse} progress={progress} />
-            <Act3Skills t={a3} mouse={mouse} />
+            <Act1Title t={a1} mx={mx} my={my} />
+            <Act2Manifesto t={a2} mx={mx} my={my} />
+            <Act3Skills t={a3} mx={mx} my={my} />
             {/* Arrow bar decoration stays in 3D */}
             <Act4Decor t={a4} />
-          </div>
+          </motion.div>
 
           {/* Act4 CTA rendered OUTSIDE 3D canvas — flat overlay, reliable click events */}
           <Act4Exit t={a4} go={go} />
-
-          {/* Mobile quick-nav: bypasses the 500vh scroll experience on small screens */}
-          <MobileQuickNav go={go} isMobile={isMobile} />
 
           {/* Progress dial */}
           <ProgressDial progress={progress} />
@@ -102,8 +109,19 @@ function DesktopHomePage() {
   );
 }
 
+// Hide fully-faded acts so they don't cost paint while invisible
+// (they stay mounted — mount/unmount would require React renders per frame)
+function useActVisibility(t) {
+  return useTransform(t, (v) => (v <= 0.001 ? 'hidden' : 'visible'));
+}
+
 // =================== CORNER CHROME ===================
-function CornerChrome({ progress, mouse }) {
+function CornerChrome({ progress }) {
+  // Local state confined to this tiny label — updates only when the numeral changes
+  const [section, setSection] = useState('I');
+  useMotionValueEvent(progress, 'change', (v) => {
+    setSection(v < 0.25 ? 'I' : v < 0.55 ? 'II' : v < 0.85 ? 'III' : 'IV');
+  });
   return (
     <>
       {/* Top-left index */}
@@ -113,7 +131,7 @@ function CornerChrome({ progress, mouse }) {
       }}>
         <div className="label" style={{ color: 'var(--red)' }}>FOLIO № I</div>
         <div className="mono" style={{ fontSize: 10, opacity: 0.6 }}>
-          SECTION · {progress < 0.25 ? 'I' : progress < 0.55 ? 'II' : progress < 0.85 ? 'III' : 'IV'}
+          SECTION · {section}
         </div>
       </div>
 
@@ -134,49 +152,54 @@ function CornerChrome({ progress, mouse }) {
 }
 
 // =================== ACT 1 : TITLE ===================
-function Act1Title({ t, mouse }) {
+function Act1Title({ t, mx, my }) {
+  const visibility = useActVisibility(t);
+  const discTransform = useTransform(() => `translateZ(-200px) translate(${mx.get() * 2}px, ${my.get() * 2}px) scale(${easeOut(t.get())})`);
+  const wedgeTransform = useTransform(() => `translateZ(-100px) scaleY(${easeOut(t.get())})`);
+  const barTransform = useTransform(() => `rotate(-22deg) translateX(${(1 - t.get()) * -100}%) translateZ(50px)`);
   return (
-    <div style={{
+    <motion.div style={{
       position: 'absolute', inset: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       transformStyle: 'preserve-3d',
       opacity: t,
+      visibility,
     }}>
       {/* Big red circle behind */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         width: '70vh', height: '70vh',
         borderRadius: '50%',
         background: 'var(--red)',
         left: 'calc(50% - 35vh)',
         top: 'calc(50% - 35vh)',
-        transform: `translateZ(-200px) translate(${mouse.x * 2}px, ${mouse.y * 2}px) scale(${easeOut(t)})`,
+        transform: discTransform,
       }} />
 
       {/* Black wedge */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         width: '50vh', height: '25vh',
         background: 'var(--ink)',
         borderRadius: '50vh 50vh 0 0',
         left: 'calc(50% - 25vh)',
         top: 'calc(50% - 30vh)',
-        transform: `translateZ(-100px) scaleY(${easeOut(t)})`,
+        transform: wedgeTransform,
         transformOrigin: 'bottom',
       }} />
 
       {/* Diagonal yellow bar */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         width: '120vw', height: 28,
         background: 'var(--ochre)',
         top: '52%',
         left: '-10vw',
-        transform: `rotate(-22deg) translateX(${(1 - t) * -100}%) translateZ(50px)`,
+        transform: barTransform,
       }} />
 
       {/* The name - render twice: black layer + cream layer clipped to red disc */}
-      <NameStack t={t} mouse={mouse} />
+      <NameStack t={t} mx={mx} my={my} />
 
       {/* Subtitle */}
       <div style={{
@@ -191,21 +214,16 @@ function Act1Title({ t, mouse }) {
           BUILDER · CSE · INDIA
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function NameStack({ t, mouse }) {
-  // Disc in screen coordinates: 70vh wide, centered. We use a circular clip-path
-  // that uses px from the viewport's center. Translate the disc center based on mouse
-  // (matches the disc's transform).
-  const dx = (mouse?.x || 0) * 2;
-  const dy = (mouse?.y || 0) * 2;
-  // 35vh radius. clip-path circle uses pixels relative to the element's box.
-  // Letters wrapper is centered at 50/50 of the viewport because parent is flex-center.
-  // We can express clip-path with a CSS calc using vh.
-  const clipDisc = `circle(35vh at calc(50% + ${dx}px - 50% + 50%) calc(50% + ${dy}px))`;
-  // Simpler: place the cream layer absolutely over the page area and clip to the disc.
+function NameStack({ t, mx, my }) {
+  // Disc in screen coordinates: 70vh wide, centered. The cream layer is clipped
+  // to a circle that tracks the disc's mouse-parallax translate.
+  const dx = useTransform(() => mx.get() * 2);
+  const dy = useTransform(() => my.get() * 2);
+  const clipPath = useMotionTemplate`circle(35vh at calc(50% + ${dx}px) calc(50% + ${dy}px))`;
   return (
     <div style={{
       position: 'absolute',
@@ -219,17 +237,16 @@ function NameStack({ t, mouse }) {
         <NameLetters t={t} colorMode="ink" />
       </div>
       {/* Layer 2: cream letters, clipped to the red disc only — gives the invert effect */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         inset: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        clipPath: `circle(35vh at calc(50% + ${dx}px) calc(50% + ${dy}px))`,
-        WebkitClipPath: `circle(35vh at calc(50% + ${dx}px) calc(50% + ${dy}px))`,
+        clipPath,
       }}>
         <div style={{ position: 'relative', textAlign: 'center', transformStyle: 'preserve-3d' }}>
           <NameLetters t={t} colorMode="cream" />
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -245,73 +262,83 @@ function NameLetters({ t, colorMode = 'ink' }) {
       letterSpacing: '-0.04em',
       transformStyle: 'preserve-3d',
     }}>
-      {lines.map((line, li) => {
-        const lt = clamp(remap(t, li * 0.15, 0.4 + li * 0.15, 0, 1), 0, 1);
-        const size = li === 1 ? 'clamp(70px, 12vw, 200px)' : 'clamp(80px, 14vw, 220px)';
-        // colorMode "ink" = whole name dark; "cream" = whole name light (used inside disc clip)
-        const color = colorMode === 'cream' ? 'var(--cream)' : 'var(--ink)';
-        const offset = li === 1 ? -60 : 0;
-        return (
-          <div key={li} style={{
-            fontSize: size,
-            color,
-            transform: `translateX(${(1 - lt) * (li % 2 ? 200 : -200)}px) translateZ(${li * 30}px) rotateY(${(1 - lt) * 30}deg)`,
-            opacity: lt,
-            marginLeft: offset,
-          }}>
-            {line}
-          </div>
-        );
-      })}
+      {lines.map((line, li) => (
+        <NameLine key={li} t={t} li={li} line={line} colorMode={colorMode} />
+      ))}
     </div>
   );
 }
 
+function NameLine({ t, li, line, colorMode }) {
+  const lt = useTransform(() => clamp(remap(t.get(), li * 0.15, 0.4 + li * 0.15, 0, 1), 0, 1));
+  const transform = useTransform(() => `translateX(${(1 - lt.get()) * (li % 2 ? 200 : -200)}px) translateZ(${li * 30}px) rotateY(${(1 - lt.get()) * 30}deg)`);
+  const size = li === 1 ? 'clamp(70px, 12vw, 200px)' : 'clamp(80px, 14vw, 220px)';
+  // colorMode "ink" = whole name dark; "cream" = whole name light (used inside disc clip)
+  const color = colorMode === 'cream' ? 'var(--cream)' : 'var(--ink)';
+  const offset = li === 1 ? -60 : 0;
+  return (
+    <motion.div style={{
+      fontSize: size,
+      color,
+      transform,
+      opacity: lt,
+      marginLeft: offset,
+    }}>
+      {line}
+    </motion.div>
+  );
+}
+
 // =================== ACT 2 : MANIFESTO ===================
-function Act2Manifesto({ t, mouse, progress }) {
-  if (t <= 0) return null;
-  const fade = clamp(1 - remap(t, 0.75, 1, 0, 1), 0, 1) * clamp(remap(t, 0, 0.2, 0, 1), 0, 1);
+function Act2Manifesto({ t, mx, my }) {
+  const visibility = useActVisibility(t);
+  const fade = useTransform(() => clamp(1 - remap(t.get(), 0.75, 1, 0, 1), 0, 1) * clamp(remap(t.get(), 0, 0.2, 0, 1), 0, 1));
+  const containerTransform = useTransform(() => `translateZ(${600 + t.get() * 200}px)`);
+  const slabTransform = useTransform(() => `translateZ(-50px) rotate(-8deg) translate(${mx.get() * 4}px, ${my.get() * 4}px)`);
+  const discTransform = useTransform(() => `translateZ(-100px) translate(${mx.get() * 6}px, ${my.get() * 6}px)`);
+  const ringTransform = useTransform(() => `translateZ(-90px) translate(${mx.get() * 6}px, ${my.get() * 6}px)`);
 
   return (
-    <div style={{
+    <motion.div style={{
       position: 'absolute', inset: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       transformStyle: 'preserve-3d',
-      transform: `translateZ(${600 + t * 200}px)`,
+      transform: containerTransform,
       opacity: fade,
+      visibility,
     }}>
       {/* Big halftone slab */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         width: 480, height: 480,
         backgroundImage: 'radial-gradient(circle, var(--ink) 1.5px, transparent 2px)',
         backgroundSize: '8px 8px',
         left: 'calc(50% - 600px)',
         top: 'calc(50% - 240px)',
-        transform: `translateZ(-50px) rotate(-8deg) translate(${mouse.x * 4}px, ${mouse.y * 4}px)`,
+        transform: slabTransform,
         opacity: 0.4,
       }} />
 
       {/* Big red disc */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         width: 380, height: 380,
         background: 'var(--red)',
         borderRadius: '50%',
         right: 'calc(50% - 580px)',
         top: 'calc(50% - 190px)',
-        transform: `translateZ(-100px) translate(${mouse.x * 6}px, ${mouse.y * 6}px)`,
+        transform: discTransform,
       }} />
 
       {/* White ring */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         width: 380, height: 380,
         border: '8px solid var(--ink)',
         borderRadius: '50%',
         right: 'calc(50% - 600px)',
         top: 'calc(50% - 200px)',
-        transform: `translateZ(-90px) translate(${mouse.x * 6}px, ${mouse.y * 6}px)`,
+        transform: ringTransform,
       }} />
 
       {/* Manifesto text block */}
@@ -351,14 +378,18 @@ function Act2Manifesto({ t, mouse, progress }) {
           }} />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 // =================== ACT 3 : SKILLS ===================
-function Act3Skills({ t, mouse }) {
-  if (t <= 0) return null;
-  const fade = clamp(1 - remap(t, 0.8, 1, 0, 1), 0, 1) * clamp(remap(t, 0, 0.15, 0, 1), 0, 1);
+function Act3Skills({ t, mx, my }) {
+  const visibility = useActVisibility(t);
+  const fade = useTransform(() => clamp(1 - remap(t.get(), 0.8, 1, 0, 1), 0, 1) * clamp(remap(t.get(), 0, 0.15, 0, 1), 0, 1));
+  const containerTransform = useTransform(() => `translateZ(${1100 + t.get() * 100}px)`);
+  const squareTransform = useTransform(() => `rotate(15deg) translate(${mx.get() * 3}px, ${my.get() * 3}px)`);
+  const discTransform = useTransform(() => `translate(${mx.get() * 5}px, ${my.get() * 5}px)`);
+  const triTransform = useTransform(() => `translate(${mx.get() * 4}px, ${my.get() * 4}px)`);
 
   const skills = [
     { name: 'REACT', cat: 'WEB' },
@@ -376,40 +407,41 @@ function Act3Skills({ t, mouse }) {
   ];
 
   return (
-    <div style={{
+    <motion.div style={{
       position: 'absolute', inset: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       transformStyle: 'preserve-3d',
-      transform: `translateZ(${1100 + t * 100}px)`,
+      transform: containerTransform,
       opacity: fade,
+      visibility,
     }}>
       {/* Background poster shapes */}
       <div style={{
         position: 'absolute', inset: 0,
         transformStyle: 'preserve-3d',
       }}>
-        <div style={{
+        <motion.div style={{
           position: 'absolute',
           left: '8%', top: '15%',
           width: 200, height: 200,
           background: 'var(--ink)',
-          transform: `rotate(15deg) translate(${mouse.x * 3}px, ${mouse.y * 3}px)`,
+          transform: squareTransform,
         }} />
-        <div style={{
+        <motion.div style={{
           position: 'absolute',
           right: '10%', bottom: '15%',
           width: 280, height: 280,
           background: 'var(--red)',
           borderRadius: '50%',
-          transform: `translate(${mouse.x * 5}px, ${mouse.y * 5}px)`,
+          transform: discTransform,
         }} />
-        <div style={{
+        <motion.div style={{
           position: 'absolute',
           right: '8%', top: '12%',
           width: 0, height: 0,
           borderTop: '120px solid var(--ochre)',
           borderLeft: '120px solid transparent',
-          transform: `translate(${mouse.x * 4}px, ${mouse.y * 4}px)`,
+          transform: triTransform,
         }} />
       </div>
 
@@ -437,75 +469,75 @@ function Act3Skills({ t, mouse }) {
         border: '3px solid var(--ink)',
         background: 'var(--ink)',
       }}>
-        {skills.map((s, i) => {
-          const it = clamp(remap(t, i * 0.03, 0.3 + i * 0.03, 0, 1), 0, 1);
-          const isRed = i % 7 === 3;
-          return (
-            <div key={s.name} data-magnet style={{
-              padding: '24px 16px',
-              background: isRed ? 'var(--red)' : 'var(--cream)',
-              color: isRed ? 'var(--cream)' : 'var(--ink)',
-              border: '1px solid var(--ink)',
-              transform: `translateY(${(1 - it) * 60}px) rotateX(${(1 - it) * 60}deg)`,
-              opacity: it,
-              transformOrigin: 'top',
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-            }}
-              onMouseEnter={(e) => {
-                if (!isRed) { e.currentTarget.style.background = 'var(--ochre)'; }
-              }}
-              onMouseLeave={(e) => {
-                if (!isRed) { e.currentTarget.style.background = 'var(--cream)'; }
-              }}
-            >
-              <div className="mono" style={{ fontSize: 9, opacity: 0.5, marginBottom: 6 }}>
-                {String(i + 1).padStart(2, '0')} · {s.cat}
-              </div>
-              <div className="display" style={{ fontSize: 18, letterSpacing: '-0.02em' }}>
-                {s.name}
-              </div>
-            </div>
-          );
-        })}
+        {skills.map((s, i) => (
+          <SkillCell key={s.name} t={t} s={s} i={i} />
+        ))}
       </div>
-    </div>
+    </motion.div>
+  );
+}
+
+// Hover color lives in CSS (.skill-cell:hover) — the previous inline-style
+// mutation was wiped by every React render, causing flicker.
+function SkillCell({ t, s, i }) {
+  const it = useTransform(() => clamp(remap(t.get(), i * 0.03, 0.3 + i * 0.03, 0, 1), 0, 1));
+  const transform = useTransform(() => `translateY(${(1 - it.get()) * 60}px) rotateX(${(1 - it.get()) * 60}deg)`);
+  const isRed = i % 7 === 3;
+  return (
+    <motion.div data-magnet className={isRed ? 'skill-cell skill-cell-red' : 'skill-cell'} style={{
+      padding: '24px 16px',
+      border: '1px solid var(--ink)',
+      transform,
+      opacity: it,
+      transformOrigin: 'top',
+    }}>
+      <div className="mono" style={{ fontSize: 9, opacity: 0.5, marginBottom: 6 }}>
+        {String(i + 1).padStart(2, '0')} · {s.cat}
+      </div>
+      <div className="display" style={{ fontSize: 18, letterSpacing: '-0.02em' }}>
+        {s.name}
+      </div>
+    </motion.div>
   );
 }
 
 // =================== ACT 4 : DECORATIVE arrow (stays in 3D canvas) ===================
 function Act4Decor({ t }) {
-  if (t <= 0) return null;
+  const visibility = useActVisibility(t);
+  const barTransform = useTransform(() => `scaleX(${easeOut(t.get())})`);
   return (
-    <div style={{
+    <motion.div style={{
       position: 'absolute', inset: 0,
       transformStyle: 'preserve-3d',
       transform: 'translateZ(1700px)',
       opacity: t,
+      visibility,
       pointerEvents: 'none',
     }}>
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         width: '80vw', height: 8,
         background: 'var(--red)',
         top: '50%', left: '10vw',
-        transform: `scaleX(${easeOut(t)})`,
+        transform: barTransform,
         transformOrigin: 'left',
       }} />
-    </div>
+    </motion.div>
   );
 }
 
 // =================== ACT 4 : EXIT CTA (flat 2D overlay — reliable hit-testing) ===================
 function Act4Exit({ t, go }) {
-  if (t <= 0) return null;
+  const visibility = useActVisibility(t);
+  const pointerEvents = useTransform(t, (v) => (v > 0.3 ? 'auto' : 'none'));
   return (
-    <div style={{
+    <motion.div style={{
       position: 'absolute', inset: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 20,
-      pointerEvents: t > 0.3 ? 'auto' : 'none',
+      pointerEvents,
       opacity: t,
+      visibility,
     }}>
       <div style={{ position: 'relative', textAlign: 'center' }}>
         <div className="label" style={{ color: 'var(--red)', marginBottom: 16 }}>NEXT TRANSMISSION</div>
@@ -516,7 +548,7 @@ function Act4Exit({ t, go }) {
           ENTER ARCHIVE <span style={{ fontSize: 18 }}>→</span>
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -568,7 +600,11 @@ function MobileQuickNav({ go, isMobile }) {
 // =================== DIAL ===================
 
 function ProgressDial({ progress }) {
-  const angle = progress * 360;
+  // Integer percent — re-renders only this small dial, at most once per 1% change
+  const [pct, setPct] = useState(0);
+  useMotionValueEvent(progress, 'change', (v) => {
+    setPct(clamp(Math.floor(v * 100), 0, 100));
+  });
   return (
     <div style={{
       position: 'absolute',
@@ -588,13 +624,13 @@ function ProgressDial({ progress }) {
           fill="none"
           stroke="var(--red)"
           strokeWidth="3"
-          strokeDasharray={`${progress * 125.6} 125.6`}
+          strokeDasharray={`${(pct / 100) * 125.6} 125.6`}
           transform="rotate(-90 24 24)"
         />
         <circle cx="24" cy="24" r="3" fill="var(--ink)" />
       </svg>
       <div className="mono" style={{ fontSize: 10, opacity: 0.6 }}>
-        {String(Math.floor(progress * 100)).padStart(2, '0')}
+        {String(pct).padStart(2, '0')}
       </div>
     </div>
   );

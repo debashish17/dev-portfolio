@@ -310,6 +310,17 @@ html, body {
   height: 40px;
 }
 
+/* ============ HOME · SKILL GRID ============ */
+.skill-cell {
+  background: var(--cream);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.skill-cell:hover { background: var(--ochre); }
+.skill-cell-red,
+.skill-cell-red:hover { background: var(--red); color: var(--cream); }
+
 /* ============ HALFTONE ============ */
 .halftone {
   background-image: radial-gradient(circle, var(--ink) 1px, transparent 1.5px);
