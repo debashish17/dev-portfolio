@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, useScroll, useSpring, useTransform, useMotionValue, useMotionTemplate, useMotionValueEvent, animate } from 'motion/react';
-import { useRoute, easeOut, clamp, remap } from '../components/primitives.jsx';
+import { useRoute, easeOut, easeInOut, clamp, remap } from '../components/primitives.jsx';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
@@ -17,6 +17,20 @@ function useIsMobile() {
 //   Act 2 (0.25–0.55): Manifesto / role tag — shapes orbit
 //   Act 3 (0.55–0.85): Skill grid emerges, halftone portrait silhouette
 //   Act 4 (0.85–1.00): "Enter the work" exit ramp
+
+// --- kinetic transition helpers ---
+// Acts hand off with staggered per-element motion instead of crossfades:
+// every element enters/exits by translate/rotate/scale on its own sub-window
+// of the act's progress, so transitions scrub cleanly in both directions.
+const seg = (v, from, to, ease) => {
+  const x = clamp(remap(v, from, to, 0, 1), 0, 1);
+  return ease ? ease(x) : x;
+};
+const easeIn = (t) => t * t * t;
+const backOut = (t) => {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
 
 // All per-frame animation runs on MotionValues: scroll, mouse and intro write
 // straight to the DOM via motion.div, so React never re-renders during
@@ -52,14 +66,37 @@ function DesktopHomePage() {
   const mx = useSpring(rawMx, { stiffness: 140, damping: 18, mass: 0.4 });
   const my = useSpring(rawMy, { stiffness: 140, damping: 18, mass: 0.4 });
 
-  // Act timing — a1 is visible immediately (intro), fades out as scroll begins
-  const a1 = useTransform(() => Math.max(intro.get(), 0.001) * clamp(1 - remap(progress.get(), 0.15, 0.30, 0, 1), 0, 1));
-  const a2 = useTransform(() => clamp(remap(progress.get(), 0.20, 0.55, 0, 1), 0, 1));
-  const a3 = useTransform(() => clamp(remap(progress.get(), 0.50, 0.85, 0, 1), 0, 1));
-  const a4 = useTransform(() => clamp(remap(progress.get(), 0.80, 1.00, 0, 1), 0, 1));
+  // Timeline: each act's main frame is a HOLD plateau where nothing moves
+  // (except mouse parallax); all kinetic motion happens inside three
+  // transition zones between them. Motion eases out into each hold.
+  //   hold 1: 0.00-0.17   zone 1: 0.17-0.27
+  //   hold 2: 0.27-0.44   zone 2: 0.44-0.54
+  //   hold 3: 0.54-0.71   zone 3: 0.71-0.81
+  //   hold 4: 0.81-1.00
+  // NOTE: multi-input derivations below use the explicit-dependency form of
+  // useTransform ([deps], fn) — the auto-tracking arrow form misses
+  // subscriptions when a dependency isn't read on the first call (e.g. after
+  // a short-circuiting ||), which froze exit animations mid-flight.
+  const Z1 = [0.17, 0.27], Z2 = [0.44, 0.54], Z3 = [0.71, 0.81];
+  const exit1 = useTransform(progress, (p) => seg(p, Z1[0], Z1[1]));
+  const enter2 = useTransform(progress, (p) => seg(p, Z1[0] + 0.02, Z1[1] + 0.02));
+  const exit2 = useTransform(progress, (p) => seg(p, Z2[0], Z2[1]));
+  const enter3 = useTransform(progress, (p) => seg(p, Z2[0] + 0.02, Z2[1] + 0.02));
+  const exit3 = useTransform(progress, (p) => seg(p, Z3[0], Z3[1]));
+  const enter4 = useTransform(progress, (p) => seg(p, Z3[0] + 0.02, Z3[1] + 0.04));
 
-  // Camera moves through Z based on scroll
-  const cameraTransform = useTransform(() => `translateZ(${-progress.get() * 1200}px) rotateX(${progress.get() * -8}deg)`);
+  // Camera parks EXACTLY on each act's plane at each hold (acts sit at z=0,
+  // 600, 1100, 1700) so resting acts render 1:1 and centered — any offset
+  // would zoom/shift them via the perspective origin. The tilt peaks
+  // mid-transition and levels out to 0 at every hold.
+  const cameraTransform = useTransform(progress, (p) => {
+    const s1 = seg(p, Z1[0], Z1[1], easeInOut);
+    const s2 = seg(p, Z2[0], Z2[1], easeInOut);
+    const s3 = seg(p, Z3[0], Z3[1], easeInOut);
+    const z = s1 * 600 + s2 * 500 + s3 * 600;
+    const tilt = Math.sin(Math.PI * s1) + Math.sin(Math.PI * s2) + Math.sin(Math.PI * s3);
+    return `translateZ(${-z}px) rotateX(${tilt * -5}deg)`;
+  });
 
   return (
     <div ref={scrollRef} style={{
@@ -68,8 +105,8 @@ function DesktopHomePage() {
       perspective: 1800,
       perspectiveOrigin: '50% 40%',
     }}>
-      {/* Tall scroll spacer */}
-      <div style={{ height: '500vh', position: 'relative' }}>
+      {/* Tall scroll spacer — length sets pacing: holds get ~9 wheel notches each */}
+      <div style={{ height: '650vh', position: 'relative' }}>
         {/* Sticky stage */}
         <div style={{
           position: 'sticky',
@@ -91,15 +128,15 @@ function DesktopHomePage() {
             transformStyle: 'preserve-3d',
             transform: cameraTransform,
           }}>
-            <Act1Title t={a1} mx={mx} my={my} />
-            <Act2Manifesto t={a2} mx={mx} my={my} />
-            <Act3Skills t={a3} mx={mx} my={my} />
+            <Act1Title build={intro} exit={exit1} mx={mx} my={my} />
+            <Act2Manifesto enter={enter2} exit={exit2} mx={mx} my={my} />
+            <Act3Skills enter={enter3} exit={exit3} mx={mx} my={my} />
             {/* Arrow bar decoration stays in 3D */}
-            <Act4Decor t={a4} />
+            <Act4Decor t={enter4} />
           </motion.div>
 
           {/* Act4 CTA rendered OUTSIDE 3D canvas — flat overlay, reliable click events */}
-          <Act4Exit t={a4} go={go} />
+          <Act4Exit t={enter4} go={go} />
 
           {/* Progress dial */}
           <ProgressDial progress={progress} />
@@ -120,7 +157,7 @@ function CornerChrome({ progress }) {
   // Local state confined to this tiny label — updates only when the numeral changes
   const [section, setSection] = useState('I');
   useMotionValueEvent(progress, 'change', (v) => {
-    setSection(v < 0.25 ? 'I' : v < 0.55 ? 'II' : v < 0.85 ? 'III' : 'IV');
+    setSection(v < 0.22 ? 'I' : v < 0.49 ? 'II' : v < 0.76 ? 'III' : 'IV');
   });
   return (
     <>
@@ -152,17 +189,29 @@ function CornerChrome({ progress }) {
 }
 
 // =================== ACT 1 : TITLE ===================
-function Act1Title({ t, mx, my }) {
-  const visibility = useActVisibility(t);
-  const discTransform = useTransform(() => `translateZ(-200px) translate(${mx.get() * 2}px, ${my.get() * 2}px) scale(${easeOut(t.get())})`);
-  const wedgeTransform = useTransform(() => `translateZ(-100px) scaleY(${easeOut(t.get())})`);
-  const barTransform = useTransform(() => `rotate(-22deg) translateX(${(1 - t.get()) * -100}%) translateZ(50px)`);
+function Act1Title({ build, exit, mx, my }) {
+  const visibility = useTransform(exit, (v) => (v >= 0.999 ? 'hidden' : 'visible'));
+  const discTransform = useTransform([build, exit, mx, my], ([b, ex, x, y]) => {
+    const e = seg(ex, 0.10, 0.80, easeIn);
+    return `translateZ(-200px) translate(${x * 2}px, ${y * 2}px) scale(${easeOut(b) * (1 - e)})`;
+  });
+  const wedgeTransform = useTransform([build, exit], ([b, ex]) => {
+    const e = seg(ex, 0.05, 0.70, easeIn);
+    return `translateZ(-100px) scaleY(${easeOut(b) * (1 - e)})`;
+  });
+  const barTransform = useTransform([build, exit], ([b, ex]) => {
+    const e = seg(ex, 0, 0.60, easeIn);
+    return `rotate(-22deg) translateX(${(1 - b) * -100 + e * 170}%) translateZ(50px)`;
+  });
+  const subTransform = useTransform([build, exit], ([b, ex]) => {
+    const e = seg(ex, 0.12, 0.72, easeIn);
+    return `translateY(${(1 - b) * 3 + e * 45}vh)`;
+  });
   return (
     <motion.div style={{
       position: 'absolute', inset: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       transformStyle: 'preserve-3d',
-      opacity: t,
       visibility,
     }}>
       {/* Big red circle behind */}
@@ -199,30 +248,32 @@ function Act1Title({ t, mx, my }) {
       }} />
 
       {/* The name - render twice: black layer + cream layer clipped to red disc */}
-      <NameStack t={t} mx={mx} my={my} />
+      <NameStack build={build} exit={exit} mx={mx} my={my} />
 
       {/* Subtitle */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         bottom: 80,
         left: 0, right: 0,
         textAlign: 'center',
         zIndex: 20,
         pointerEvents: 'none',
+        transform: subTransform,
+        opacity: build,
       }}>
         <div className="label" style={{ color: 'var(--cream)', background: 'var(--ink)', padding: '6px 16px', display: 'inline-block' }}>
           BUILDER · CSE · INDIA
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
 
-function NameStack({ t, mx, my }) {
+function NameStack({ build, exit, mx, my }) {
   // Disc in screen coordinates: 70vh wide, centered. The cream layer is clipped
   // to a circle that tracks the disc's mouse-parallax translate.
-  const dx = useTransform(() => mx.get() * 2);
-  const dy = useTransform(() => my.get() * 2);
+  const dx = useTransform(mx, (x) => x * 2);
+  const dy = useTransform(my, (y) => y * 2);
   const clipPath = useMotionTemplate`circle(35vh at calc(50% + ${dx}px) calc(50% + ${dy}px))`;
   return (
     <div style={{
@@ -234,7 +285,7 @@ function NameStack({ t, mx, my }) {
     }}>
       {/* Layer 1: ink letters everywhere */}
       <div style={{ position: 'relative', textAlign: 'center', transformStyle: 'preserve-3d' }}>
-        <NameLetters t={t} colorMode="ink" />
+        <NameLetters build={build} exit={exit} colorMode="ink" />
       </div>
       {/* Layer 2: cream letters, clipped to the red disc only — gives the invert effect */}
       <motion.div style={{
@@ -244,14 +295,14 @@ function NameStack({ t, mx, my }) {
         clipPath,
       }}>
         <div style={{ position: 'relative', textAlign: 'center', transformStyle: 'preserve-3d' }}>
-          <NameLetters t={t} colorMode="cream" />
+          <NameLetters build={build} exit={exit} colorMode="cream" />
         </div>
       </motion.div>
     </div>
   );
 }
 
-function NameLetters({ t, colorMode = 'ink' }) {
+function NameLetters({ build, exit, colorMode = 'ink' }) {
   const lines = ['DIBYA', 'DEBASHISH', 'BHOI'];
   return (
     <div style={{
@@ -263,15 +314,21 @@ function NameLetters({ t, colorMode = 'ink' }) {
       transformStyle: 'preserve-3d',
     }}>
       {lines.map((line, li) => (
-        <NameLine key={li} t={t} li={li} line={line} colorMode={colorMode} />
+        <NameLine key={li} build={build} exit={exit} li={li} line={line} colorMode={colorMode} />
       ))}
     </div>
   );
 }
 
-function NameLine({ t, li, line, colorMode }) {
-  const lt = useTransform(() => clamp(remap(t.get(), li * 0.15, 0.4 + li * 0.15, 0, 1), 0, 1));
-  const transform = useTransform(() => `translateX(${(1 - lt.get()) * (li % 2 ? 200 : -200)}px) translateZ(${li * 30}px) rotateY(${(1 - lt.get()) * 30}deg)`);
+function NameLine({ build, exit, li, line, colorMode }) {
+  // Entrance (intro) slides lines in from ±200px; exit shoots them fully
+  // off-screen in alternating directions, staggered top-to-bottom.
+  const lt = useTransform(build, (b) => clamp(remap(b, li * 0.15, 0.4 + li * 0.15, 0, 1), 0, 1));
+  const transform = useTransform([lt, exit], ([inT, ex]) => {
+    const e = seg(ex, li * 0.08, 0.7 + li * 0.08, easeIn);
+    const dir = li % 2 ? -1 : 1;
+    return `translateX(calc(${(1 - inT) * (li % 2 ? 200 : -200)}px + ${e * dir * 120}vw)) translateZ(${li * 30}px) rotateY(${(1 - inT) * 30 - e * dir * 25}deg)`;
+  });
   const size = li === 1 ? 'clamp(70px, 12vw, 200px)' : 'clamp(80px, 14vw, 220px)';
   // colorMode "ink" = whole name dark; "cream" = whole name light (used inside disc clip)
   const color = colorMode === 'cream' ? 'var(--cream)' : 'var(--ink)';
@@ -290,13 +347,33 @@ function NameLine({ t, li, line, colorMode }) {
 }
 
 // =================== ACT 2 : MANIFESTO ===================
-function Act2Manifesto({ t, mx, my }) {
-  const visibility = useActVisibility(t);
-  const fade = useTransform(() => clamp(1 - remap(t.get(), 0.75, 1, 0, 1), 0, 1) * clamp(remap(t.get(), 0, 0.2, 0, 1), 0, 1));
-  const containerTransform = useTransform(() => `translateZ(${600 + t.get() * 200}px)`);
-  const slabTransform = useTransform(() => `translateZ(-50px) rotate(-8deg) translate(${mx.get() * 4}px, ${my.get() * 4}px)`);
-  const discTransform = useTransform(() => `translateZ(-100px) translate(${mx.get() * 6}px, ${my.get() * 6}px)`);
-  const ringTransform = useTransform(() => `translateZ(-90px) translate(${mx.get() * 6}px, ${my.get() * 6}px)`);
+function Act2Manifesto({ enter, exit, mx, my }) {
+  // Kinetic handoff: no crossfade — the slab slides in from the left, disc and
+  // ring pop up from scale 0, the card rises from below the viewport; on exit
+  // everything reverses out. During the hold (enter=1, exit=0) the act is
+  // completely still apart from mouse parallax.
+  const visibility = useTransform([enter, exit], ([i, o]) => (i <= 0.001 || o >= 0.99 ? 'hidden' : 'visible'));
+  const containerTransform = useTransform(exit, (o) => `translateZ(${600 + o * 150}px)`);
+  const slabTransform = useTransform([enter, exit, mx, my], ([en, ex, x, y]) => {
+    const i = seg(en, 0, 0.8, easeOut);
+    const o = seg(ex, 0.05, 0.9, easeIn);
+    return `translateZ(-50px) rotate(-8deg) translate(calc(${x * 4}px + ${(1 - i) * -60 - o * 90}vw), ${y * 4}px)`;
+  });
+  const discTransform = useTransform([enter, exit, mx, my], ([en, ex, x, y]) => {
+    const i = seg(en, 0.1, 0.85, backOut);
+    const o = seg(ex, 0, 0.7, easeIn);
+    return `translateZ(-100px) translate(${x * 6}px, ${y * 6}px) scale(${Math.max(0, i * (1 - o))})`;
+  });
+  const ringTransform = useTransform([enter, exit, mx, my], ([en, ex, x, y]) => {
+    const i = seg(en, 0.2, 0.95, backOut);
+    const o = seg(ex, 0.1, 0.8, easeIn);
+    return `translateZ(-90px) translate(${x * 6}px, ${y * 6}px) scale(${Math.max(0, i * (1 - o))})`;
+  });
+  const cardTransform = useTransform([enter, exit], ([en, ex]) => {
+    const i = seg(en, 0, 0.9, backOut);
+    const o = seg(ex, 0.05, 1, easeIn);
+    return `translateY(${(1 - i) * 70 - o * 120}vh) rotate(-1deg)`;
+  });
 
   return (
     <motion.div style={{
@@ -304,7 +381,6 @@ function Act2Manifesto({ t, mx, my }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       transformStyle: 'preserve-3d',
       transform: containerTransform,
-      opacity: fade,
       visibility,
     }}>
       {/* Big halftone slab */}
@@ -342,7 +418,7 @@ function Act2Manifesto({ t, mx, my }) {
       }} />
 
       {/* Manifesto text block */}
-      <div style={{
+      <motion.div style={{
         position: 'relative',
         maxWidth: 720,
         padding: '40px 48px',
@@ -350,7 +426,7 @@ function Act2Manifesto({ t, mx, my }) {
         border: '3px solid var(--ink)',
         boxShadow: '12px 12px 0 var(--red)',
         transformStyle: 'preserve-3d',
-        transform: `rotate(-1deg)`,
+        transform: cardTransform,
       }}>
         <div className="label" style={{ color: 'var(--red)', marginBottom: 24 }}>· MANIFESTO ·</div>
         <div style={{
@@ -377,19 +453,45 @@ function Act2Manifesto({ t, mx, my }) {
             clipPath: 'polygon(50% 0, 100% 100%, 0 100%)',
           }} />
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
 
 // =================== ACT 3 : SKILLS ===================
-function Act3Skills({ t, mx, my }) {
-  const visibility = useActVisibility(t);
-  const fade = useTransform(() => clamp(1 - remap(t.get(), 0.8, 1, 0, 1), 0, 1) * clamp(remap(t.get(), 0, 0.15, 0, 1), 0, 1));
-  const containerTransform = useTransform(() => `translateZ(${1100 + t.get() * 100}px)`);
-  const squareTransform = useTransform(() => `rotate(15deg) translate(${mx.get() * 3}px, ${my.get() * 3}px)`);
-  const discTransform = useTransform(() => `translate(${mx.get() * 5}px, ${my.get() * 5}px)`);
-  const triTransform = useTransform(() => `translate(${mx.get() * 4}px, ${my.get() * 4}px)`);
+function Act3Skills({ enter, exit, mx, my }) {
+  // Kinetic handoff: shapes slide in from their nearest screen edge, the title
+  // rises into place, cells flip up from edge-on; exits reverse out staggered.
+  // Dead-still during the hold (enter=1, exit=0) apart from mouse parallax.
+  const visibility = useTransform([enter, exit], ([i, o]) => (i <= 0.001 || o >= 0.99 ? 'hidden' : 'visible'));
+  const containerTransform = useTransform(exit, (o) => `translateZ(${1100 + o * 150}px)`);
+  const squareTransform = useTransform([enter, exit, mx, my], ([en, ex, x, y]) => {
+    const i = seg(en, 0, 0.7, easeOut);
+    const o = seg(ex, 0.1, 0.8, easeIn);
+    return `rotate(15deg) translate(calc(${x * 3}px + ${(1 - i) * -40 - o * 60}vw), ${y * 3}px)`;
+  });
+  const discTransform = useTransform([enter, exit, mx, my], ([en, ex, x, y]) => {
+    const i = seg(en, 0.05, 0.75, easeOut);
+    const o = seg(ex, 0.15, 0.85, easeIn);
+    return `translate(calc(${x * 5}px + ${(1 - i) * 50 + o * 70}vw), ${y * 5}px)`;
+  });
+  const triTransform = useTransform([enter, exit, mx, my], ([en, ex, x, y]) => {
+    const i = seg(en, 0.1, 0.8, easeOut);
+    const o = seg(ex, 0.1, 0.75, easeIn);
+    return `translate(${x * 4}px, calc(${y * 4}px + ${(1 - i) * -40 - o * 60}vh))`;
+  });
+  const titleTransform = useTransform([enter, exit], ([en, ex]) => {
+    const i = seg(en, 0, 0.75, backOut);
+    const o = seg(ex, 0.1, 0.9, easeIn);
+    return `translate(-50%, ${(1 - i) * 20 - o * 60}vh)`;
+  });
+  // The grid's ink frame rises with the act and leaves upward — otherwise it
+  // would sit as an empty black slab while cells are still edge-on
+  const gridTransform = useTransform([enter, exit], ([en, ex]) => {
+    const i = seg(en, 0, 0.55, easeOut);
+    const o = seg(ex, 0.25, 1, easeIn);
+    return `translateY(${(1 - i) * 80 - o * 130}vh)`;
+  });
 
   const skills = [
     { name: 'REACT', cat: 'WEB' },
@@ -412,7 +514,6 @@ function Act3Skills({ t, mx, my }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       transformStyle: 'preserve-3d',
       transform: containerTransform,
-      opacity: fade,
       visibility,
     }}>
       {/* Background poster shapes */}
@@ -446,21 +547,21 @@ function Act3Skills({ t, mx, my }) {
       </div>
 
       {/* Title */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         top: '12%',
         left: '50%',
-        transform: 'translateX(-50%)',
+        transform: titleTransform,
         textAlign: 'center',
       }}>
         <div className="label" style={{ color: 'var(--red)', marginBottom: 12 }}>SECTION III · INSTRUMENTS</div>
         <div className="display" style={{ fontSize: 'clamp(48px, 6vw, 84px)', color: 'var(--ink)' }}>
           THE TOOLBOX
         </div>
-      </div>
+      </motion.div>
 
       {/* Skill grid */}
-      <div style={{
+      <motion.div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
         gap: 0,
@@ -468,27 +569,32 @@ function Act3Skills({ t, mx, my }) {
         marginTop: 100,
         border: '3px solid var(--ink)',
         background: 'var(--ink)',
+        transform: gridTransform,
       }}>
         {skills.map((s, i) => (
-          <SkillCell key={s.name} t={t} s={s} i={i} />
+          <SkillCell key={s.name} enter={enter} exit={exit} s={s} i={i} />
         ))}
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
 
 // Hover color lives in CSS (.skill-cell:hover) — the previous inline-style
 // mutation was wiped by every React render, causing flicker.
-function SkillCell({ t, s, i }) {
-  const it = useTransform(() => clamp(remap(t.get(), i * 0.03, 0.3 + i * 0.03, 0, 1), 0, 1));
-  const transform = useTransform(() => `translateY(${(1 - it.get()) * 60}px) rotateX(${(1 - it.get()) * 60}deg)`);
+function SkillCell({ enter, exit, s, i }) {
+  // Cells flip up from fully edge-on (90° = invisible, so no opacity needed)
+  // in forward stagger; they flip away in reverse stagger on exit.
+  const transform = useTransform([enter, exit], ([en, ex]) => {
+    const inT = seg(en, i * 0.04, 0.55 + i * 0.04, easeOut);
+    const outT = seg(ex, (11 - i) * 0.02, 0.55 + (11 - i) * 0.02, easeIn);
+    return `translateY(${(1 - inT) * 40 + outT * 20}px) rotateX(${(1 - inT) * 90 - outT * 90}deg)`;
+  });
   const isRed = i % 7 === 3;
   return (
     <motion.div data-magnet className={isRed ? 'skill-cell skill-cell-red' : 'skill-cell'} style={{
       padding: '24px 16px',
       border: '1px solid var(--ink)',
       transform,
-      opacity: it,
       transformOrigin: 'top',
     }}>
       <div className="mono" style={{ fontSize: 9, opacity: 0.5, marginBottom: 6 }}>
@@ -504,13 +610,13 @@ function SkillCell({ t, s, i }) {
 // =================== ACT 4 : DECORATIVE arrow (stays in 3D canvas) ===================
 function Act4Decor({ t }) {
   const visibility = useActVisibility(t);
-  const barTransform = useTransform(() => `scaleX(${easeOut(t.get())})`);
+  // The bar draws itself in via scaleX — no fade needed
+  const barTransform = useTransform(t, (v) => `scaleX(${easeOut(v)})`);
   return (
     <motion.div style={{
       position: 'absolute', inset: 0,
       transformStyle: 'preserve-3d',
       transform: 'translateZ(1700px)',
-      opacity: t,
       visibility,
       pointerEvents: 'none',
     }}>
@@ -530,23 +636,32 @@ function Act4Decor({ t }) {
 function Act4Exit({ t, go }) {
   const visibility = useActVisibility(t);
   const pointerEvents = useTransform(t, (v) => (v > 0.3 ? 'auto' : 'none'));
+  // Staggered slide-up from below the viewport; button pops in with overshoot
+  const labelTransform = useTransform(t, (v) => `translateY(${(1 - seg(v, 0.05, 0.55, backOut)) * 55}vh)`);
+  const titleTransform = useTransform(t, (v) => `translateY(${(1 - seg(v, 0.15, 0.65, backOut)) * 60}vh)`);
+  const btnTransform = useTransform(t, (v) => {
+    const e = seg(v, 0.3, 0.85, backOut);
+    return `translateY(${(1 - e) * 40}vh) scale(${0.6 + e * 0.4})`;
+  });
   return (
     <motion.div style={{
       position: 'absolute', inset: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 20,
       pointerEvents,
-      opacity: t,
       visibility,
+      overflow: 'hidden',
     }}>
       <div style={{ position: 'relative', textAlign: 'center' }}>
-        <div className="label" style={{ color: 'var(--red)', marginBottom: 16 }}>NEXT TRANSMISSION</div>
-        <div className="display" style={{ fontSize: 'clamp(44px, 9vw, 140px)', color: 'var(--ink)', marginBottom: 32, lineHeight: 0.85 }}>
+        <motion.div className="label" style={{ color: 'var(--red)', marginBottom: 16, transform: labelTransform }}>NEXT TRANSMISSION</motion.div>
+        <motion.div className="display" style={{ fontSize: 'clamp(44px, 9vw, 140px)', color: 'var(--ink)', marginBottom: 32, lineHeight: 0.85, transform: titleTransform }}>
           TO THE<br />WORK<span style={{ color: 'var(--red)' }}>.</span>
-        </div>
-        <button className="btn-block clickable" style={{ margin: '0 auto' }} onClick={() => go('work')}>
-          ENTER ARCHIVE <span style={{ fontSize: 18 }}>→</span>
-        </button>
+        </motion.div>
+        <motion.div style={{ transform: btnTransform }}>
+          <button className="btn-block clickable" style={{ margin: '0 auto' }} onClick={() => go('work')}>
+            ENTER ARCHIVE <span style={{ fontSize: 18 }}>→</span>
+          </button>
+        </motion.div>
       </div>
     </motion.div>
   );
