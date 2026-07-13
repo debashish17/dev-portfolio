@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone, LiveClock, SectionMarker } from '../components/primitives.jsx';
+import { motion, useTransform } from 'motion/react';
+import { useRoute, useMouseParallaxMV, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone, LiveClock, SectionMarker } from '../components/primitives.jsx';
 // CONTACT PAGE
 // Big propaganda-style "TRANSMIT" panel with form + contact details
 
@@ -15,7 +16,10 @@ function useIsMobile() {
 
 export default function ContactPage() {
   const isMobile = useIsMobile();
-  const mouse = useMouseParallax(isMobile ? 0 : 5);
+  // MotionValue parallax — same feel, but no page re-render per mousemove
+  const mouse = useMouseParallaxMV(isMobile ? 0 : 5);
+  const ringParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * 4}px, ${y * 4}px)`);
+  const cardParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * -2}px, ${y * -2}px)`);
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [status, setStatus] = useState('idle'); // idle | sending | sent | error
 
@@ -62,14 +66,14 @@ export default function ContactPage() {
       </div>
 
       {/* Background giant ring */}
-      <div className="contact-decor-ring" style={{
+      <motion.div className="contact-decor-ring" style={{
         position: 'absolute',
         right: -300, top: -200,
         width: 800, height: 800,
         border: '3px solid var(--ink)',
         borderRadius: '50%',
         opacity: 0.1,
-        transform: `translate(${mouse.x * 4}px, ${mouse.y * 4}px)`,
+        transform: ringParallax,
       }} />
       <div className="contact-decor-circle" style={{
         position: 'absolute',
@@ -143,9 +147,9 @@ export default function ContactPage() {
         </div>
 
         {/* RIGHT: transmission card */}
-        <div style={{
+        <motion.div style={{
           position: 'relative',
-          transform: `translate(${mouse.x * -2}px, ${mouse.y * -2}px)`,
+          transform: cardParallax,
         }}>
           {/* Behind shadow */}
           <div style={{
@@ -267,7 +271,7 @@ export default function ContactPage() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
+import { motion, useTransform } from 'motion/react';
+import { useRoute, useMouseParallaxMV, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
@@ -76,7 +77,9 @@ const PROJECTS = [
 export default function WorkPage() {
   const [active, setActive] = useState(null);
   const isMobile = useIsMobile();
-  const mouse = useMouseParallax(isMobile ? 0 : 4);
+  // MotionValue parallax — same feel, but no page re-render per mousemove
+  const mouse = useMouseParallaxMV(isMobile ? 0 : 4);
+  const discParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * 5}px, ${y * 5}px)`);
 
   return (
     <div className="paper-bg" style={{
@@ -114,14 +117,14 @@ export default function WorkPage() {
       </div>
 
       {/* Background poster shapes */}
-      <div style={{
+      <motion.div style={{
         position: 'absolute',
         right: -120, top: 80,
         width: 380, height: 380,
         borderRadius: '50%',
         background: 'var(--red)',
         opacity: 0.08,
-        transform: `translate(${mouse.x * 5}px, ${mouse.y * 5}px)`,
+        transform: discParallax,
       }} />
       <div style={{
         position: 'absolute',

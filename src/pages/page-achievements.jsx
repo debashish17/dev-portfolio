@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useRoute, useMouseParallax, useScrollProgress, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
+import { motion, useTransform } from 'motion/react';
+import { useRoute, useMouseParallaxMV, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
@@ -37,7 +38,10 @@ const ACHIEVEMENTS = [
 
 export default function AchievementsPage() {
   const isMobile = useIsMobile();
-  const mouse = useMouseParallax(isMobile ? 0 : 5);
+  // MotionValue parallax — same feel, but no page re-render per mousemove
+  const mouse = useMouseParallaxMV(isMobile ? 0 : 5);
+  const raysParallax = useTransform(mouse.x, (x) => `rotate(${15 + x * 0.5}deg)`);
+  const medalParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * 4}px, ${y * 4}px)`);
   const [hovered, setHovered] = useState(null);
 
   return (
@@ -53,11 +57,11 @@ export default function AchievementsPage() {
       </div>
 
       {/* Background propaganda rays from top-right */}
-      <div className="achievements-rays" style={{
+      <motion.div className="achievements-rays" style={{
         position: 'absolute',
         top: -200, right: -200,
         width: 1200, height: 1200,
-        transform: `rotate(${15 + mouse.x * 0.5}deg)`,
+        transform: raysParallax,
         pointerEvents: 'none',
       }}>
         {Array.from({ length: 12 }).map((_, i) => (
@@ -71,15 +75,15 @@ export default function AchievementsPage() {
             transform: `translateY(-50%) rotate(${i * 30}deg)`,
           }} />
         ))}
-      </div>
+      </motion.div>
 
       {/* Big medal seal */}
-      <div className="achievements-medal" style={{
+      <motion.div className="achievements-medal" style={{
         position: 'absolute',
         top: '50%', left: '50%',
         width: 440, height: 440,
         marginLeft: -220, marginTop: -220,
-        transform: `translate(${mouse.x * 4}px, ${mouse.y * 4}px)`,
+        transform: medalParallax,
         pointerEvents: 'none',
       }}>
         {/* Outer rotating ring */}
@@ -119,7 +123,7 @@ export default function AchievementsPage() {
           @keyframes spin { to { transform: rotate(360deg); } }
           @keyframes spinSlow { to { transform: rotate(-360deg); } }
         `}</style>
-      </div>
+      </motion.div>
 
       {/* Big title behind/around */}
       <div className="achievements-title-bg" style={{
