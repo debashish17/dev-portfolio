@@ -6,8 +6,12 @@
 // same gates as /api/chat.
 
 import { env, json, guard, withinDailyBudget, contactEmail } from './_guard.js';
+import { toVercel } from './_web.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 15 };
+
+// Same Web handler for Bun dev and Vercel's (req, res) runtime — see _web.js.
+export default toVercel(handler);
 
 const MAX_NAME = 100;
 const MAX_EMAIL = 200;
@@ -36,7 +40,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
-export default async function handler(request) {
+async function handler(request) {
   const blocked = await guard(request, {
     scope: 'contact',
     perMinute: RATE_LIMIT,

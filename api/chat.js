@@ -10,8 +10,12 @@
 
 import { SYSTEM_PROMPT } from './_knowledge.js';
 import { env, json, guard, withinDailyBudget, contactEmail } from './_guard.js';
+import { toVercel } from './_web.js';
 
 export const config = { runtime: 'nodejs', maxDuration: 30 };
+
+// Same Web handler for Bun dev and Vercel's (req, res) runtime — see _web.js.
+export default toVercel(handler);
 
 // ---------------------------------------------------------------- constants
 const MAX_MESSAGE_CHARS = 600;
@@ -131,7 +135,7 @@ async function callUpstream(key, history, message, signal) {
 }
 
 // ---------------------------------------------------------------------- handler
-export default async function handler(request) {
+async function handler(request) {
   // 1, 3, 4 — method, origin allowlist, per-IP rate limit.
   // Origin matters because form-encoded POSTs skip CORS preflight, so CORS
   // alone does not stop another site from burning the quota. Checked before
