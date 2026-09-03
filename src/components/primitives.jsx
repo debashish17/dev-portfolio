@@ -1,11 +1,25 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from 'react';
 import { useMotionValue } from 'motion/react';
+import { useRenderCount } from '../lib/xray/render-count.js';
 // Shared geometric primitives & utilities
 // Constructivist building blocks: circles, triangles, bars, halftones
 
 // ---------- ROUTER ----------
 export const RouteContext = createContext({ route: 'home', go: () => {} });
 export const useRoute = () => useContext(RouteContext);
+
+// ---------- VIEWPORT ----------
+// Mirrors the CSS 768px breakpoint. Pages historically carried their own copy
+// of this hook; new code imports this one so there is a single definition.
+export function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handle = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handle);
+    return () => window.removeEventListener('resize', handle);
+  }, []);
+  return mobile;
+}
 
 // ---------- SHAPES ----------
 export function Circle({ size = 100, color = 'var(--red)', x = 0, y = 0, z = 0, opacity = 1, style = {} }) {
@@ -155,6 +169,7 @@ export function LogoMark({ size = 80, animate = false }) {
 
 // ---------- CURSOR ----------
 export function CustomCursor() {
+  useRenderCount('CustomCursor');
   const ref = useRef(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -261,6 +276,7 @@ export const seg = (v, from, to, ease) => {
 
 // ---------- LIVE CLOCK ----------
 export function LiveClock() {
+  useRenderCount('LiveClock');
   const [time, setTime] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);

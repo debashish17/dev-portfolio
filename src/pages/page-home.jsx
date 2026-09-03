@@ -1,16 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, useScroll, useSpring, useTransform, useMotionValue, useMotionTemplate, useMotionValueEvent, animate } from 'motion/react';
-import { useRoute, easeOut, easeInOut, easeIn, backOut, seg, clamp, remap } from '../components/primitives.jsx';
-
-function useIsMobile() {
-  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
-  useEffect(() => {
-    const handle = () => setMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handle);
-    return () => window.removeEventListener('resize', handle);
-  }, []);
-  return mobile;
-}
+import { useRoute, useIsMobile, easeOut, easeInOut, easeIn, backOut, seg, clamp, remap } from '../components/primitives.jsx';
+import { SCROLL_SPRING, POINTER_SPRING, HOME_SEGS, HOME_TIMELINE, homeCameraTransform } from '../motion/timeline.js';
+import { useXRayRegister } from '../components/xray/hooks.js';
+import { xv } from '../components/xray/descriptors.js';
+import { useRenderCount } from '../lib/xray/render-count.js';
 // HOME / HERO PAGE
 // Multi-act scroll experience:
 //   Act 1 (0.0–0.25): Title assembles from flying shapes
@@ -32,7 +26,7 @@ function DesktopHomePage() {
   const { go } = useRoute();
 
   const { scrollYProgress } = useScroll({ container: scrollRef });
-  const progress = useSpring(scrollYProgress, { stiffness: 110, damping: 26, mass: 0.5, restDelta: 0.0005 });
+  const progress = useSpring(scrollYProgress, SCROLL_SPRING);
 
   // On-mount intro animation
   const intro = useMotionValue(0);
@@ -54,8 +48,8 @@ function DesktopHomePage() {
     window.addEventListener('mousemove', handle);
     return () => window.removeEventListener('mousemove', handle);
   }, [rawMx, rawMy]);
-  const mx = useSpring(rawMx, { stiffness: 140, damping: 18, mass: 0.4 });
-  const my = useSpring(rawMy, { stiffness: 140, damping: 18, mass: 0.4 });
+  const mx = useSpring(rawMx, POINTER_SPRING);
+  const my = useSpring(rawMy, POINTER_SPRING);
 
   // Timeline: each act's main frame is a HOLD plateau where nothing moves
   // (except mouse parallax); all kinetic motion happens inside three
@@ -68,25 +62,37 @@ function DesktopHomePage() {
   // useTransform ([deps], fn) — the auto-tracking arrow form misses
   // subscriptions when a dependency isn't read on the first call (e.g. after
   // a short-circuiting ||), which froze exit animations mid-flight.
-  const Z1 = [0.17, 0.27], Z2 = [0.44, 0.54], Z3 = [0.71, 0.81];
-  const exit1 = useTransform(progress, (p) => seg(p, Z1[0], Z1[1]));
-  const enter2 = useTransform(progress, (p) => seg(p, Z1[0] + 0.02, Z1[1] + 0.02));
-  const exit2 = useTransform(progress, (p) => seg(p, Z2[0], Z2[1]));
-  const enter3 = useTransform(progress, (p) => seg(p, Z2[0] + 0.02, Z2[1] + 0.02));
-  const exit3 = useTransform(progress, (p) => seg(p, Z3[0], Z3[1]));
-  const enter4 = useTransform(progress, (p) => seg(p, Z3[0] + 0.02, Z3[1] + 0.04));
+  // Zone edges and seg windows live in src/motion/timeline.js so x-ray mode
+  // reads exactly the numbers this page animates with.
+  const exit1 = useTransform(progress, (p) => seg(p, ...HOME_SEGS.exit1));
+  const enter2 = useTransform(progress, (p) => seg(p, ...HOME_SEGS.enter2));
+  const exit2 = useTransform(progress, (p) => seg(p, ...HOME_SEGS.exit2));
+  const enter3 = useTransform(progress, (p) => seg(p, ...HOME_SEGS.enter3));
+  const exit3 = useTransform(progress, (p) => seg(p, ...HOME_SEGS.exit3));
+  const enter4 = useTransform(progress, (p) => seg(p, ...HOME_SEGS.enter4));
 
   // Camera parks EXACTLY on each act's plane at each hold (acts sit at z=0,
   // 600, 1100, 1700) so resting acts render 1:1 and centered — any offset
   // would zoom/shift them via the perspective origin. The tilt peaks
-  // mid-transition and levels out to 0 at every hold.
-  const cameraTransform = useTransform(progress, (p) => {
-    const s1 = seg(p, Z1[0], Z1[1], easeInOut);
-    const s2 = seg(p, Z2[0], Z2[1], easeInOut);
-    const s3 = seg(p, Z3[0], Z3[1], easeInOut);
-    const z = s1 * 600 + s2 * 500 + s3 * 600;
-    const tilt = Math.sin(Math.PI * s1) + Math.sin(Math.PI * s2) + Math.sin(Math.PI * s3);
-    return `translateZ(${-z}px) rotateX(${tilt * -5}deg)`;
+  // mid-transition and levels out to 0 at every hold. Math is homeCamera()
+  // in timeline.js, shared with the x-ray scrubber's readout.
+  const cameraTransform = useTransform(progress, homeCameraTransform);
+
+  // Publish the MotionValues this page already owns to x-ray mode. Nothing here
+  // computes per frame; the overlay reads these only while it is open.
+  useXRayRegister('home', {
+    variant: 'desktop', timeline: HOME_TIMELINE, scroller: scrollRef,
+    values: {
+      scrollY: xv.raw(scrollYProgress, [0, 1], '', 'scrollYProgress (raw)'),
+      progress: xv.progress(progress, SCROLL_SPRING, { source: 'useSpring(scrollYProgress)' }),
+      intro: xv.raw(intro, [0, 1], '', 'intro · animate() 1.2s'),
+      rawMx: xv.raw(rawMx, [-8, 8]), rawMy: xv.raw(rawMy, [-8, 8]),
+      mx: xv.spring(mx, POINTER_SPRING, [-8, 8]), my: xv.spring(my, POINTER_SPRING, [-8, 8]),
+      exit1: xv.seg(exit1, HOME_SEGS.exit1), enter2: xv.seg(enter2, HOME_SEGS.enter2),
+      exit2: xv.seg(exit2, HOME_SEGS.exit2), enter3: xv.seg(enter3, HOME_SEGS.enter3),
+      exit3: xv.seg(exit3, HOME_SEGS.exit3), enter4: xv.seg(enter4, HOME_SEGS.enter4),
+      camera: xv.transform(cameraTransform, 'camera · translateZ / rotateX'),
+    },
   });
 
   return (
@@ -146,6 +152,7 @@ function useActVisibility(t) {
 // =================== CORNER CHROME ===================
 function CornerChrome({ progress }) {
   // Local state confined to this tiny label — updates only when the numeral changes
+  useRenderCount('CornerChrome');
   const [section, setSection] = useState('I');
   useMotionValueEvent(progress, 'change', (v) => {
     setSection(v < 0.22 ? 'I' : v < 0.49 ? 'II' : v < 0.76 ? 'III' : 'IV');
@@ -153,7 +160,7 @@ function CornerChrome({ progress }) {
   return (
     <>
       {/* Top-left index */}
-      <div style={{
+      <div data-xray="CHROME · INDEX" data-xray-values="progress" data-xray-render="CornerChrome" style={{
         position: 'absolute', top: 24, left: 24, zIndex: 10,
         display: 'flex', flexDirection: 'column', gap: 6,
       }}>
@@ -206,7 +213,7 @@ function Act1Title({ build, exit, mx, my }) {
       visibility,
     }}>
       {/* Big red circle behind */}
-      <motion.div style={{
+      <motion.div data-xray="ACT I · DISC" data-xray-values="intro,exit1,mx,my" style={{
         position: 'absolute',
         width: '70vh', height: '70vh',
         borderRadius: '50%',
@@ -217,7 +224,7 @@ function Act1Title({ build, exit, mx, my }) {
       }} />
 
       {/* Black wedge */}
-      <motion.div style={{
+      <motion.div data-xray="ACT I · WEDGE" data-xray-values="intro,exit1" style={{
         position: 'absolute',
         width: '50vh', height: '25vh',
         background: 'var(--ink)',
@@ -229,7 +236,7 @@ function Act1Title({ build, exit, mx, my }) {
       }} />
 
       {/* Diagonal yellow bar */}
-      <motion.div style={{
+      <motion.div data-xray="ACT I · BAR" data-xray-values="intro,exit1" style={{
         position: 'absolute',
         width: '120vw', height: 28,
         background: 'var(--ochre)',
@@ -242,7 +249,7 @@ function Act1Title({ build, exit, mx, my }) {
       <NameStack build={build} exit={exit} mx={mx} my={my} />
 
       {/* Subtitle */}
-      <motion.div style={{
+      <motion.div data-xray="ACT I · SUBTITLE" data-xray-values="intro,exit1" style={{
         position: 'absolute',
         bottom: 80,
         left: 0, right: 0,
@@ -275,7 +282,7 @@ function NameStack({ build, exit, mx, my }) {
       pointerEvents: 'none',
     }}>
       {/* Layer 1: ink letters everywhere */}
-      <div style={{ position: 'relative', textAlign: 'center', transformStyle: 'preserve-3d' }}>
+      <div data-xray="ACT I · NAME" data-xray-values="intro,exit1" style={{ position: 'relative', textAlign: 'center', transformStyle: 'preserve-3d' }}>
         <NameLetters build={build} exit={exit} colorMode="ink" />
       </div>
       {/* Layer 2: cream letters, clipped to the red disc only — gives the invert effect */}
@@ -375,7 +382,7 @@ function Act2Manifesto({ enter, exit, mx, my }) {
       visibility,
     }}>
       {/* Big halftone slab */}
-      <motion.div style={{
+      <motion.div data-xray="ACT II · SLAB" data-xray-values="enter2,exit2,mx,my" style={{
         position: 'absolute',
         width: 480, height: 480,
         backgroundImage: 'radial-gradient(circle, var(--ink) 1.5px, transparent 2px)',
@@ -387,7 +394,7 @@ function Act2Manifesto({ enter, exit, mx, my }) {
       }} />
 
       {/* Big red disc */}
-      <motion.div style={{
+      <motion.div data-xray="ACT II · DISC" data-xray-values="enter2,exit2,mx,my" style={{
         position: 'absolute',
         width: 380, height: 380,
         background: 'var(--red)',
@@ -398,7 +405,7 @@ function Act2Manifesto({ enter, exit, mx, my }) {
       }} />
 
       {/* White ring */}
-      <motion.div style={{
+      <motion.div data-xray="ACT II · RING" data-xray-values="enter2,exit2,mx,my" style={{
         position: 'absolute',
         width: 380, height: 380,
         border: '8px solid var(--ink)',
@@ -409,7 +416,7 @@ function Act2Manifesto({ enter, exit, mx, my }) {
       }} />
 
       {/* Manifesto text block */}
-      <motion.div style={{
+      <motion.div data-xray="ACT II · CARD" data-xray-values="enter2,exit2" style={{
         position: 'relative',
         maxWidth: 720,
         padding: '40px 48px',
@@ -436,7 +443,7 @@ function Act2Manifesto({ enter, exit, mx, my }) {
           marginTop: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
         }}>
           <div className="mono" style={{ fontSize: 12, opacity: 0.6 }}>
-            VIT-AP · CSE · 2022—<br />Mego Forex · Full-Stack
+            VIT-AP · CSE · 2022—<br />RBP Finivis · Full-Stack
           </div>
           <div style={{
             width: 60, height: 60,
@@ -512,14 +519,14 @@ function Act3Skills({ enter, exit, mx, my }) {
         position: 'absolute', inset: 0,
         transformStyle: 'preserve-3d',
       }}>
-        <motion.div style={{
+        <motion.div data-xray="ACT III · SQUARE" data-xray-values="enter3,exit3,mx,my" style={{
           position: 'absolute',
           left: '8%', top: '15%',
           width: 200, height: 200,
           background: 'var(--ink)',
           transform: squareTransform,
         }} />
-        <motion.div style={{
+        <motion.div data-xray="ACT III · DISC" data-xray-values="enter3,exit3,mx,my" style={{
           position: 'absolute',
           right: '10%', bottom: '15%',
           width: 280, height: 280,
@@ -527,7 +534,7 @@ function Act3Skills({ enter, exit, mx, my }) {
           borderRadius: '50%',
           transform: discTransform,
         }} />
-        <motion.div style={{
+        <motion.div data-xray="ACT III · TRI" data-xray-values="enter3,exit3,mx,my" style={{
           position: 'absolute',
           right: '8%', top: '12%',
           width: 0, height: 0,
@@ -538,7 +545,7 @@ function Act3Skills({ enter, exit, mx, my }) {
       </div>
 
       {/* Title */}
-      <motion.div style={{
+      <motion.div data-xray="ACT III · TITLE" data-xray-values="enter3,exit3" style={{
         position: 'absolute',
         top: '12%',
         left: '50%',
@@ -552,7 +559,7 @@ function Act3Skills({ enter, exit, mx, my }) {
       </motion.div>
 
       {/* Skill grid */}
-      <motion.div style={{
+      <motion.div data-xray="ACT III · GRID" data-xray-values="enter3,exit3" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
         gap: 0,
@@ -611,7 +618,7 @@ function Act4Decor({ t }) {
       visibility,
       pointerEvents: 'none',
     }}>
-      <motion.div style={{
+      <motion.div data-xray="ACT IV · BAR" data-xray-values="enter4" style={{
         position: 'absolute',
         width: '80vw', height: 8,
         background: 'var(--red)',
@@ -643,7 +650,7 @@ function Act4Exit({ t, go }) {
       visibility,
       overflow: 'hidden',
     }}>
-      <div style={{ position: 'relative', textAlign: 'center' }}>
+      <div data-xray="ACT IV · CTA" data-xray-values="enter4" style={{ position: 'relative', textAlign: 'center' }}>
         <motion.div className="label" style={{ color: 'var(--red)', marginBottom: 16, transform: labelTransform }}>NEXT TRANSMISSION</motion.div>
         <motion.div className="display" style={{ fontSize: 'clamp(44px, 9vw, 140px)', color: 'var(--ink)', marginBottom: 32, lineHeight: 0.85, transform: titleTransform }}>
           TO THE<br />WORK<span style={{ color: 'var(--red)' }}>.</span>
@@ -706,13 +713,14 @@ function MobileQuickNav({ go, isMobile }) {
 // =================== DIAL ===================
 
 function ProgressDial({ progress }) {
-  // Integer percent — re-renders only this small dial, at most once per 1% change
-  const [pct, setPct] = useState(0);
-  useMotionValueEvent(progress, 'change', (v) => {
-    setPct(clamp(Math.floor(v * 100), 0, 100));
-  });
+  // Both readouts bind straight to the spring: Motion writes the dash array and
+  // the digits to the DOM itself, so this component renders exactly once. It
+  // used to setState per 1% and re-render up to 101 times per scroll.
+  useRenderCount('ProgressDial');
+  const dash = useTransform(progress, (v) => `${clamp(v, 0, 1) * 125.6} 125.6`);
+  const pct = useTransform(progress, (v) => String(clamp(Math.floor(v * 100), 0, 100)).padStart(2, '0'));
   return (
-    <div style={{
+    <div data-xray="CHROME · DIAL" data-xray-values="progress" data-xray-render="ProgressDial" style={{
       position: 'absolute',
       top: '50%',
       right: 24,
@@ -725,19 +733,17 @@ function ProgressDial({ progress }) {
     }}>
       <svg width="48" height="48" viewBox="0 0 48 48">
         <circle cx="24" cy="24" r="20" fill="none" stroke="var(--ink)" strokeWidth="1" opacity="0.2" />
-        <circle
+        <motion.circle
           cx="24" cy="24" r="20"
           fill="none"
           stroke="var(--red)"
           strokeWidth="3"
-          strokeDasharray={`${(pct / 100) * 125.6} 125.6`}
+          strokeDasharray={dash}
           transform="rotate(-90 24 24)"
         />
         <circle cx="24" cy="24" r="3" fill="var(--ink)" />
       </svg>
-      <div className="mono" style={{ fontSize: 10, opacity: 0.6 }}>
-        {String(pct).padStart(2, '0')}
-      </div>
+      <motion.div className="mono" style={{ fontSize: 10, opacity: 0.6 }}>{pct}</motion.div>
     </div>
   );
 }
@@ -762,6 +768,12 @@ function useMobileReveal(threshold = 0.2) {
 // =================== MOBILE HOME PAGE ===================
 function MobileHomePage() {
   const { go } = useRoute();
+  // Mobile home is a plain scroll page — no spring, no timeline. Register so the
+  // HUD can say so honestly rather than showing stale desktop values.
+  useXRayRegister('home', {
+    variant: 'mobile', timeline: null, scroller: null, values: {},
+    notes: ['sections reveal via a one-shot IntersectionObserver + CSS transitions', 'hero intro: rAF + setState for 1.2s (MobileHeroSection)'],
+  });
   return (
     <div data-mobile-scroll style={{
       position: 'absolute', inset: 0,
@@ -776,20 +788,17 @@ function MobileHomePage() {
 }
 
 function MobileHeroSection() {
-  const [introT, setIntroT] = useState(0);
+  useRenderCount('MobileHeroSection');
+  // One MotionValue tween drives the intro; Motion writes the styles, so this
+  // section renders once instead of ~170 times during the first 1.2s (it used
+  // to setState from a rAF loop — the weakest devices paid for that on load).
+  const intro = useMotionValue(0);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    let raf;
-    const start = performance.now();
-    const tick = (now) => {
-      const dt = Math.min(1, (now - start) / 1200);
-      setIntroT(easeOut(dt));
-      if (dt < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    const controls = animate(intro, 1, { duration: 1.2, ease: easeOut });
+    return () => controls.stop();
+  }, [intro]);
 
   useEffect(() => {
     const container = document.querySelector('[data-mobile-scroll]');
@@ -843,53 +852,64 @@ function MobileHeroSection() {
         letterSpacing: '-0.04em',
         lineHeight: 0.85,
       }}>
-        {lines.map((line, li) => {
-          const lt = clamp(remap(introT, li * 0.15, 0.4 + li * 0.15, 0, 1), 0, 1);
-          const size = li === 1 ? 'clamp(52px, 13vw, 80px)' : 'clamp(60px, 15vw, 90px)';
-          return (
-            <div key={li} style={{
-              fontSize: size,
-              color: 'var(--ink)',
-              transform: `translateX(${(1 - lt) * (li % 2 ? 60 : -60)}px)`,
-              opacity: lt,
-            }}>
-              {line}
-            </div>
-          );
-        })}
+        {lines.map((line, li) => (
+          <MobileNameLine key={li} intro={intro} li={li} line={line} />
+        ))}
       </div>
 
       {/* Subtitle */}
-      <div className="label" style={{
+      <motion.div className="label" style={{
         position: 'relative', zIndex: 5,
         color: 'var(--cream)',
         background: 'var(--ink)',
         padding: '6px 14px',
         marginTop: 20,
-        opacity: introT,
+        opacity: intro,
       }}>
         BUILDER · CSE · INDIA
-      </div>
+      </motion.div>
 
-      {/* Scroll hint */}
-      <div style={{
+      {/* Scroll hint — intro fade on the outer layer (MotionValue), scrolled fade on the inner (state) */}
+      <motion.div style={{
         position: 'absolute',
         bottom: 88,
         left: '50%',
         transform: 'translateX(-50%)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-        opacity: scrolled ? 0 : introT,
-        transition: 'opacity 0.4s',
+        opacity: intro,
         pointerEvents: 'none',
         zIndex: 10,
       }}>
-        <div className="mono" style={{ fontSize: 9, letterSpacing: '0.3em', opacity: 0.6 }}>SCROLL</div>
-        <svg width="16" height="24" viewBox="0 0 16 24" fill="none" style={{ animation: 'mobileScrollBounce 1.6s ease-in-out infinite' }}>
-          <path d="M8 2 L8 18 M3 13 L8 18 L13 13" stroke="var(--ink)" strokeWidth="2" strokeLinecap="square"/>
-        </svg>
-        <style>{`@keyframes mobileScrollBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(5px); } }`}</style>
-      </div>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+          opacity: scrolled ? 0 : 1,
+          transition: 'opacity 0.4s',
+        }}>
+          <div className="mono" style={{ fontSize: 9, letterSpacing: '0.3em', opacity: 0.6 }}>SCROLL</div>
+          <svg width="16" height="24" viewBox="0 0 16 24" fill="none" style={{ animation: 'mobileScrollBounce 1.6s ease-in-out infinite' }}>
+            <path d="M8 2 L8 18 M3 13 L8 18 L13 13" stroke="var(--ink)" strokeWidth="2" strokeLinecap="square"/>
+          </svg>
+          <style>{`@keyframes mobileScrollBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(5px); } }`}</style>
+        </div>
+      </motion.div>
     </div>
+  );
+}
+
+function MobileNameLine({ intro, li, line }) {
+  // Same stagger as before: each line slides in from alternating sides on its own
+  // sub-window of the intro, now as two MotionValue bindings instead of a re-render.
+  const lt = useTransform(intro, (v) => clamp(remap(v, li * 0.15, 0.4 + li * 0.15, 0, 1), 0, 1));
+  const transform = useTransform(lt, (t) => `translateX(${(1 - t) * (li % 2 ? 60 : -60)}px)`);
+  const size = li === 1 ? 'clamp(52px, 13vw, 80px)' : 'clamp(60px, 15vw, 90px)';
+  return (
+    <motion.div style={{
+      fontSize: size,
+      color: 'var(--ink)',
+      transform,
+      opacity: lt,
+    }}>
+      {line}
+    </motion.div>
   );
 }
 
@@ -961,7 +981,7 @@ function MobileManifestoSection() {
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
         }}>
           <div className="mono" style={{ fontSize: 11, opacity: 0.6 }}>
-            VIT-AP · CSE · 2022—<br />Mego Forex · Full-Stack
+            VIT-AP · CSE · 2022—<br />RBP Finivis · Full-Stack
           </div>
           <div style={{
             width: 44, height: 44,

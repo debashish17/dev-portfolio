@@ -5,6 +5,6 @@
   "framework": null,
   "rewrites": [
     { "source": "/uploads/(.*)", "destination": "/uploads/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

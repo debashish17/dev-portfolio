@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Analytics } from '@vercel/analytics/react';
 import { RouteContext, useRoute, CustomCursor, LogoMark, LiveClock } from './components/primitives.jsx';
 import { initAnalytics, trackPageView } from './lib/analytics.js';
+import { useHotkey } from './lib/hotkeys.js';
+import { useRenderCount } from './lib/xray/render-count.js';
 import Loader from './components/loader.jsx';
+import Chat from './components/chat.jsx';
+import XRayRoot from './components/xray/XRayRoot.jsx';
+import XRayToggle from './components/xray/XRayToggle.jsx';
 import HomePage from './pages/page-home.jsx';
 import AboutPage from './pages/page-about.jsx';
 import WorkPage from './pages/page-work.jsx';
@@ -12,6 +17,7 @@ import ContactPage from './pages/page-contact.jsx';
 // MAIN APP - router, navigation, page transitions
 
 function App() {
+  useRenderCount('App');
   const [loading, setLoading] = useState(true);
   const [route, setRoute] = useState('home');
   const [transitioning, setTransitioning] = useState(false);
@@ -37,14 +43,18 @@ function App() {
     }, 1100);
   }, [route, transitioning]);
 
+  // Memoised so useRoute() consumers only re-render when the route actually
+  // changes — a fresh object here re-rendered every consumer on any App state.
+  const routeCtx = useMemo(() => ({ route, go }), [route, go]);
+
   return (
-    <RouteContext.Provider value={{ route, go }}>
+    <RouteContext.Provider value={routeCtx}>
       {loading && <Loader onDone={() => setLoading(false)} />}
 
       <CustomCursor />
 
       {/* Nav */}
-      <Nav route={route} go={go} />
+      <Nav route={route} go={go} loading={loading} />
 
       {/* Stage */}
       <div className="stage">
@@ -53,6 +63,13 @@ function App() {
 
       {/* Page transition curtain */}
       {transitioning && <TransitionCurtain pendingRoute={pendingRoute} />}
+
+      {/* X-ray mode — sibling of .stage on purpose: .stage's perspective +
+          preserve-3d would mis-position a fixed overlay mounted inside a page */}
+      <XRayRoot route={pendingRoute || route} transitioning={transitioning} loading={loading} />
+
+      {/* Resident AI — mounted inside RouteContext so it can drive the site */}
+      {!loading && <Chat />}
 
       <Analytics />
     </RouteContext.Provider>
@@ -67,7 +84,8 @@ const ROUTES = [
   { id: 'contact', no: '05', label: 'TRANSMIT' },
 ];
 
-function Nav({ route, go }) {
+function Nav({ route, go, loading }) {
+  useRenderCount('Nav');
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const navigate = React.useCallback((id) => {
@@ -75,13 +93,8 @@ function Nav({ route, go }) {
     go(id);
   }, [go]);
 
-  // Close drawer on outside scroll/click
-  React.useEffect(() => {
-    if (!drawerOpen) return;
-    const close = () => setDrawerOpen(false);
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
-    return () => window.removeEventListener('keydown', close);
-  }, [drawerOpen]);
+  // Escape closes the drawer while it is open; the hook removes its own listener.
+  useHotkey('Escape', () => setDrawerOpen(false), { enabled: drawerOpen, allowInEditable: true });
 
   return (
     <>
@@ -116,6 +129,7 @@ function Nav({ route, go }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <XRayToggle loading={loading} />
           <div className="mono nav-clock-location" style={{ fontSize: 10, opacity: 0.6 }}>SUNDERGARH · IN</div>
           <LiveClock />
           {/* Hamburger button — only visible on mobile (CSS toggles display) */}

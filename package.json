@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "bun --hot src/index.ts",
     "start": "NODE_ENV=production bun src/index.ts",
-    "build": "bun run build.ts"
+    "build": "bun run build.ts",
+    "bench:scroll": "node scripts/scroll-bench.cjs",
+    "e2e": "node scripts/e2e.cjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

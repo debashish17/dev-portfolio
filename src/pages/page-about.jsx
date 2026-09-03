@@ -1,16 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useSpring, useTransform, useMotionValue, animate } from 'motion/react';
-import { easeOut, easeInOut, easeIn, backOut, seg, SectionMarker } from '../components/primitives.jsx';
-
-function useIsMobile() {
-  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
-  useEffect(() => {
-    const handle = () => setMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handle);
-    return () => window.removeEventListener('resize', handle);
-  }, []);
-  return mobile;
-}
+import { useIsMobile, easeOut, easeInOut, easeIn, backOut, seg, SectionMarker } from '../components/primitives.jsx';
+import { SCROLL_SPRING, POINTER_SPRING, ABOUT_SEGS, ABOUT_TIMELINE, aboutCameraTransform } from '../motion/timeline.js';
+import { useXRayRegister } from '../components/xray/hooks.js';
+import { xv } from '../components/xray/descriptors.js';
 
 // ABOUT PAGE - bio, education, summary
 // Layout: split poster — left half is portrait silhouette in halftone + geometric collage,
@@ -29,7 +22,7 @@ export default function AboutPage() {
   const isMobile = useIsMobile();
 
   const { scrollYProgress } = useScroll({ container: scrollRef });
-  const progress = useSpring(scrollYProgress, { stiffness: 110, damping: 26, mass: 0.5, restDelta: 0.0005 });
+  const progress = useSpring(scrollYProgress, SCROLL_SPRING);
 
   // On-mount intro for scene 1
   const build = useMotionValue(0);
@@ -52,26 +45,34 @@ export default function AboutPage() {
     window.addEventListener('mousemove', handle);
     return () => window.removeEventListener('mousemove', handle);
   }, [isMobile, rawMx, rawMy]);
-  const mx = useSpring(rawMx, { stiffness: 140, damping: 18, mass: 0.4 });
-  const my = useSpring(rawMy, { stiffness: 140, damping: 18, mass: 0.4 });
+  const mx = useSpring(rawMx, POINTER_SPRING);
+  const my = useSpring(rawMy, POINTER_SPRING);
 
-  const Z1 = [0.20, 0.34], Z2 = [0.56, 0.70];
-  const exit1 = useTransform(progress, (p) => seg(p, Z1[0], Z1[1]));
-  const enter2 = useTransform(progress, (p) => seg(p, Z1[0] + 0.02, Z1[1] + 0.02));
-  const exit2 = useTransform(progress, (p) => seg(p, Z2[0], Z2[1]));
-  const enter3 = useTransform(progress, (p) => seg(p, Z2[0] + 0.02, Z2[1] + 0.03));
+  // Zone edges and seg windows live in src/motion/timeline.js (shared with x-ray).
+  const exit1 = useTransform(progress, (p) => seg(p, ...ABOUT_SEGS.exit1));
+  const enter2 = useTransform(progress, (p) => seg(p, ...ABOUT_SEGS.enter2));
+  const exit2 = useTransform(progress, (p) => seg(p, ...ABOUT_SEGS.exit2));
+  const enter3 = useTransform(progress, (p) => seg(p, ...ABOUT_SEGS.enter3));
 
   // Camera cranes down/inward only through the zones and parks EXACTLY on
   // each scene's plane at each hold (scenes sit at y=0/100/200vh, z=0/300/600)
-  // so resting scenes render 1:1. Slight tilt peaks mid-transition.
-  const cameraTransform = useTransform(progress, (p) => {
-    const s1 = seg(p, Z1[0], Z1[1], easeInOut);
-    const s2 = seg(p, Z2[0], Z2[1], easeInOut);
-    const y = (s1 + s2) * 100;
-    if (isMobile) return `translateY(${-y}vh)`;
-    const z = (s1 + s2) * 300;
-    const tilt = (Math.sin(Math.PI * s1) + Math.sin(Math.PI * s2)) * -4;
-    return `translateZ(${-z}px) rotateX(${tilt}deg) translateY(${-y}vh)`;
+  // so resting scenes render 1:1. Slight tilt peaks mid-transition. Math is
+  // aboutCamera() in timeline.js, shared with the x-ray scrubber's readout.
+  const cameraTransform = useTransform(progress, (p) => aboutCameraTransform(p, isMobile));
+
+  // Publish the MotionValues this page already owns to x-ray mode.
+  useXRayRegister('about', {
+    variant: isMobile ? 'mobile' : 'desktop', timeline: ABOUT_TIMELINE, scroller: scrollRef,
+    values: {
+      scrollY: xv.raw(scrollYProgress, [0, 1], '', 'scrollYProgress (raw)'),
+      progress: xv.progress(progress, SCROLL_SPRING, { source: 'useSpring(scrollYProgress)' }),
+      build: xv.raw(build, [0, 1], '', 'build · animate() 1.4s'),
+      rawMx: xv.raw(rawMx, [-6, 6]), rawMy: xv.raw(rawMy, [-6, 6]),
+      mx: xv.spring(mx, POINTER_SPRING, [-6, 6]), my: xv.spring(my, POINTER_SPRING, [-6, 6]),
+      exit1: xv.seg(exit1, ABOUT_SEGS.exit1), enter2: xv.seg(enter2, ABOUT_SEGS.enter2),
+      exit2: xv.seg(exit2, ABOUT_SEGS.exit2), enter3: xv.seg(enter3, ABOUT_SEGS.enter3),
+      camera: xv.transform(cameraTransform, 'camera · translateZ / rotateX / translateY'),
+    },
   });
 
   return (
@@ -158,14 +159,14 @@ function AboutScene1({ build, exit, mx, my }) {
         transformStyle: 'preserve-3d',
       }}>
         {/* Big black square — peeks top-left */}
-        <motion.div style={{
+        <motion.div data-xray="SCENE 1 · SQUARE" data-xray-values="exit1,mx,my" style={{
           position: 'absolute',
           width: 320, height: 420,
           background: 'var(--ink)',
           transform: squareTransform,
         }} />
         {/* Red circle — bleeds bottom-right */}
-        <motion.div style={{
+        <motion.div data-xray="SCENE 1 · DISC" data-xray-values="exit1,mx,my" style={{
           position: 'absolute',
           width: 460, height: 460,
           background: 'var(--red)',
@@ -173,7 +174,7 @@ function AboutScene1({ build, exit, mx, my }) {
           transform: discTransform,
         }} />
         {/* Halftone strip — bleeds left edge */}
-        <motion.div style={{
+        <motion.div data-xray="SCENE 1 · STRIP" data-xray-values="exit1" style={{
           position: 'absolute',
           width: 180, height: 460,
           backgroundImage: 'radial-gradient(circle, var(--ink) 1.4px, transparent 2px)',
@@ -182,7 +183,7 @@ function AboutScene1({ build, exit, mx, my }) {
           opacity: 0.5,
         }} />
         {/* Portrait silhouette - abstract head shape */}
-        <motion.svg viewBox="0 0 200 260" style={{
+        <motion.svg data-xray="SCENE 1 · SILHOUETTE" data-xray-values="exit1" viewBox="0 0 200 260" style={{
           position: 'relative',
           width: 280, height: 360,
           transform: svgTransform,
@@ -204,7 +205,7 @@ function AboutScene1({ build, exit, mx, my }) {
         </motion.svg>
 
         {/* Real photo — stacked on top of shapes */}
-        <motion.div style={{
+        <motion.div data-xray="SCENE 1 · PHOTO" data-xray-values="exit1,mx,my" style={{
           position: 'absolute',
           width: 340, height: 460,
           top: '50%', left: '50%',
@@ -228,7 +229,7 @@ function AboutScene1({ build, exit, mx, my }) {
         </motion.div>
 
         {/* Number plate */}
-        <motion.div style={{
+        <motion.div data-xray="SCENE 1 · PLATE" data-xray-values="exit1" style={{
           position: 'absolute',
           bottom: '15%', left: '15%',
           background: 'var(--ochre)',
@@ -244,7 +245,7 @@ function AboutScene1({ build, exit, mx, my }) {
       </div>
 
       {/* Right: identification */}
-      <motion.div style={{
+      <motion.div data-xray="SCENE 1 · ID COLUMN" data-xray-values="build,exit1" style={{
         padding: '80px 48px',
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
         gap: 20,
@@ -295,7 +296,7 @@ function AboutScene1({ build, exit, mx, my }) {
         }}>
           Computer Science undergraduate building applied ML systems and
           production web platforms. Full-Stack Developer
-          at <strong>Mego Forex</strong>, shipping real-time financial workflows.
+          at <strong>RBP Finivis</strong>, shipping real-time financial workflows.
         </div>
       </motion.div>
     </motion.div>
@@ -339,7 +340,7 @@ function AboutScene2({ enter, exit }) {
         <SectionMarker num="II.A" label="EDUCATION RECORD" />
       </div>
 
-      <motion.div className="display about-edu-title" style={{
+      <motion.div className="display about-edu-title" data-xray="SCENE 2 · TITLE" data-xray-values="enter2,exit2" style={{
         fontSize: 'clamp(60px, 8vw, 120px)',
         marginBottom: 60,
         transform: titleTransform,
@@ -355,7 +356,7 @@ function AboutScene2({ enter, exit }) {
         maxWidth: 1100,
       }} className="about-edu-grid">
         {/* Timeline bar */}
-        <motion.div style={{
+        <motion.div data-xray="SCENE 2 · RAIL" data-xray-values="enter2,exit2" style={{
           position: 'absolute',
           left: 0, right: 0,
           top: 80,
@@ -382,7 +383,7 @@ function EduCard({ enter, exit, e, i }) {
     return `translateY(${(1 - inT) * 80 - outT * 120}vh) translateZ(${i * 20}px)`;
   });
   return (
-    <motion.div style={{
+    <motion.div data-xray={`SCENE 2 · CARD ${i + 1}`} data-xray-values="enter2,exit2" style={{
       transform,
       transformStyle: 'preserve-3d',
     }}>
@@ -446,15 +447,15 @@ function AboutScene3({ enter, isMobile }) {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1.2fr 1fr',
-        gap: 48,
+        gridTemplateColumns: '1fr 1.05fr',
+        gap: 40,
         alignItems: 'center',
-        maxWidth: 1200,
+        maxWidth: 1280,
       }} className="about-exp-grid">
-        {/* Left: Big company callout */}
-        <motion.div className="about-exp-left" style={{
+        {/* Left: the employer — licence, role, stack */}
+        <motion.div className="about-exp-left" data-xray="SCENE 3 · POST" data-xray-values="enter3" style={{
           position: 'relative',
-          padding: isMobile ? '32px 20px' : '48px 40px',
+          padding: isMobile ? '28px 20px' : '40px 36px',
           background: 'var(--ink)',
           color: 'var(--cream)',
           transform: isMobile ? 'none' : calloutTransform,
@@ -468,50 +469,82 @@ function AboutScene3({ enter, isMobile }) {
             borderLeft: '60px solid transparent',
           }} />
           <div className="label" style={{ color: 'var(--red)' }}>FEB 2026 — PRESENT</div>
-          <div className="display" style={{ fontSize: 'clamp(40px, 5vw, 72px)', marginTop: 12, marginBottom: 8 }}>
-            MEGO FOREX
+          <div className="display" style={{ fontSize: 'clamp(32px, 4vw, 58px)', marginTop: 12, marginBottom: 8, lineHeight: 0.95 }}>
+            RBP FINIVIS
           </div>
-          <div className="label" style={{ color: 'var(--ochre)', marginBottom: 24 }}>
+          <div className="label" style={{ color: 'var(--ochre)', marginBottom: 16 }}>
             FULL-STACK DEVELOPER · FULL-TIME · REMOTE
           </div>
-          <div style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.85, maxWidth: 500 }}>
-            Building production Forex services in <strong>React + NestJS + PostgreSQL</strong>.
-            Integrating live currency exchange rate vendors, payment gateways, and
-            third-party Forex data providers. Designing RESTful APIs and database
-            schemas for real-time transaction workflows.
+          <div className="mono" style={{ fontSize: 10, opacity: 0.65, marginBottom: 16, letterSpacing: '0.08em' }}>
+            RBI-LICENSED FFMC · CHG. FFMC 0297/2023
+          </div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.6, opacity: 0.85 }}>
+            I build the production forex stack in <strong>React + NestJS + PostgreSQL</strong> —
+            integrating live rate vendors, payment gateways and third-party forex data
+            providers, and designing REST APIs and schemas for real-time transaction
+            workflows. Regulated money movement, so correctness and auditability
+            outrank cleverness.
+          </div>
+          <div className="mono" style={{ fontSize: 10, marginTop: 20, color: 'var(--ochre)', letterSpacing: '0.14em' }}>
+            TWO PRODUCTS IN PRODUCTION →
           </div>
         </motion.div>
 
-        {/* Right: stat blocks */}
-        <motion.div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+        {/* Right: the two shipped products, both publicly reachable */}
+        <motion.div className="about-exp-right" data-xray="SCENE 3 · PRODUCTS" data-xray-values="enter3" style={{
+          display: 'flex',
+          flexDirection: 'column',
           gap: 16,
           transform: isMobile ? 'none' : statsTransform,
-        }} className="about-stat-grid about-exp-right">
+        }}>
           {[
-            { n: '03', l: 'CORE STACK', v: 'React · NestJS · PG', c: 'var(--red)' },
-            { n: 'API', l: 'INTEGRATIONS', v: 'Live FX · Gateway', c: 'var(--ink)' },
-            { n: 'RT', l: 'WORKFLOWS', v: 'Real-time Txn', c: 'var(--ochre)' },
-            { n: 'SEC', l: 'DOMAIN', v: 'Financial Data', c: 'var(--ink)' },
-          ].map((s, i) => (
-            <div key={i} style={{
-              padding: 20,
+            {
+              name: 'MEGOFOREX',
+              tag: 'CONSUMER · REGULATED',
+              body: 'Eight services in one checkout — remittance, currency exchange, forex cards, insurance, SIM, visa, education loans, trade. Rate locking over live market feeds, in-flow video KYC, one tracked reference per order, and automatic RBI annual-limit enforcement.',
+              url: 'https://www.megoforex.com/',
+              c: 'var(--red)',
+            },
+            {
+              name: 'WHITE-LABEL PLATFORM',
+              tag: 'PLATFORM · MULTI-TENANT',
+              body: 'The same regulated stack resold to banks and fintechs under their own brand. Six-step self-serve onboarding replaces an enterprise sales cycle — and a live sandbox lets a buyer brand a working copy of their future platform before paying.',
+              url: 'https://www.rbpfinivis.com/',
+              c: 'var(--ochre)',
+            },
+          ].map((prod) => (
+            <div key={prod.name} style={{
+              padding: isMobile ? '18px 18px' : '20px 22px',
               background: 'var(--cream)',
-              border: `2px solid var(--ink)`,
-              boxShadow: `4px 4px 0 ${s.c}`,
-              minHeight: 130,
+              border: '2px solid var(--ink)',
+              boxShadow: `6px 6px 0 ${prod.c}`,
             }}>
-              <div style={{
-                fontFamily: 'Bodoni Moda, serif',
-                fontStyle: 'italic',
-                fontWeight: 900,
-                fontSize: 36,
-                color: s.c,
-                lineHeight: 1,
-              }}>{s.n}</div>
-              <div className="label" style={{ marginTop: 8 }}>{s.l}</div>
-              <div className="mono" style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>{s.v}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div className="display" style={{ fontSize: 'clamp(19px, 2vw, 26px)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                  {prod.name}
+                </div>
+                <a
+                  href={prod.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="clickable"
+                  style={{
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    padding: '5px 10px',
+                    background: 'var(--ink)',
+                    color: 'var(--cream)',
+                    textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >LIVE ↗</a>
+              </div>
+              <div className="label" style={{ color: prod.c, marginTop: 8, fontSize: 9 }}>{prod.tag}</div>
+              <div style={{ fontSize: 12.5, lineHeight: 1.55, marginTop: 10, opacity: 0.82 }}>
+                {prod.body}
+              </div>
             </div>
           ))}
         </motion.div>

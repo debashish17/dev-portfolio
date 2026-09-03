@@ -1,18 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, useTransform } from 'motion/react';
-import { useRoute, useMouseParallaxMV, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone, LiveClock, SectionMarker } from '../components/primitives.jsx';
+import { useRoute, useIsMobile, useMouseParallaxMV, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone, LiveClock, SectionMarker } from '../components/primitives.jsx';
+import { useXRayRegister } from '../components/xray/hooks.js';
+import { xv } from '../components/xray/descriptors.js';
 // CONTACT PAGE
 // Big propaganda-style "TRANSMIT" panel with form + contact details
-
-function useIsMobile() {
-  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
-  useEffect(() => {
-    const handle = () => setMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handle);
-    return () => window.removeEventListener('resize', handle);
-  }, []);
-  return mobile;
-}
 
 export default function ContactPage() {
   const isMobile = useIsMobile();
@@ -20,39 +12,52 @@ export default function ContactPage() {
   const mouse = useMouseParallaxMV(isMobile ? 0 : 5);
   const ringParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * 4}px, ${y * 4}px)`);
   const cardParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * -2}px, ${y * -2}px)`);
+
+  // Publish to x-ray mode. No scroll timeline here — pointer parallax only.
+  useXRayRegister('contact', {
+    variant: isMobile ? 'mobile' : 'desktop', timeline: null, scroller: null,
+    values: {
+      mouseX: xv.raw(mouse.x, [-5, 5], '', 'useMouseParallaxMV.x (unsprung)'),
+      mouseY: xv.raw(mouse.y, [-5, 5], '', 'useMouseParallaxMV.y (unsprung)'),
+      ringParallax: xv.transform(ringParallax, 'ring · translate'),
+      cardParallax: xv.transform(cardParallax, 'card · counter-translate'),
+    },
+    notes: ['form card moves against the pointer (×−2) while the ring moves with it (×4)'],
+  });
+
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [status, setStatus] = useState('idle'); // idle | sending | sent | error
+  const [errMsg, setErrMsg] = useState('');
+  const [bot, setBot] = useState(''); // honeypot — real people never fill this
 
   const submit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.message) return;
     setStatus('sending');
+    setErrMsg('');
     try {
-      const res = await fetch('https://api.web3forms.com/submit', {
+      // /api/contact holds the Web3Forms key and applies origin + rate limits.
+      const res = await fetch('/api/contact', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          access_key: '67f9b1b1-2b66-44d0-84fd-269897717e5e',
-          name: form.name,
-          email: form.email,
-          message: form.message,
-          subject: `Portfolio message from ${form.name}`,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, botcheck: bot }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         setStatus('sent');
         setTimeout(() => {
           setStatus('idle');
           setForm({ name: '', email: '', message: '' });
         }, 4000);
       } else {
+        setErrMsg(data.error || '');
         setStatus('error');
-        setTimeout(() => setStatus('idle'), 3000);
+        setTimeout(() => setStatus('idle'), 6000);
       }
     } catch {
+      setErrMsg('');
       setStatus('error');
-      setTimeout(() => setStatus('idle'), 3000);
+      setTimeout(() => setStatus('idle'), 6000);
     }
   };
 
@@ -66,7 +71,7 @@ export default function ContactPage() {
       </div>
 
       {/* Background giant ring */}
-      <motion.div className="contact-decor-ring" style={{
+      <motion.div className="contact-decor-ring" data-xray="DECOR · RING" data-xray-values="mouseX,mouseY" style={{
         position: 'absolute',
         right: -300, top: -200,
         width: 800, height: 800,
@@ -147,7 +152,7 @@ export default function ContactPage() {
         </div>
 
         {/* RIGHT: transmission card */}
-        <motion.div style={{
+        <motion.div data-xray="FORM · CARD" data-xray-values="mouseX,mouseY" style={{
           position: 'relative',
           transform: cardParallax,
         }}>
@@ -224,6 +229,16 @@ export default function ContactPage() {
                   placeholder="Your email"
                   type="email"
                 />
+                <input
+                  type="text"
+                  name="botcheck"
+                  value={bot}
+                  onChange={(e) => setBot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+                />
                 <FieldArea
                   label="MESSAGE"
                   value={form.message}
@@ -232,7 +247,7 @@ export default function ContactPage() {
                 />
                 {status === 'error' && (
                   <div className="mono" style={{ fontSize: 11, color: 'var(--red)', letterSpacing: '0.1em' }}>
-                    TRANSMISSION FAILED · TRY AGAIN
+                    {errMsg ? errMsg.toUpperCase() : 'TRANSMISSION FAILED · TRY AGAIN'}
                   </div>
                 )}
                 <button type="submit" disabled={status === 'sending'} style={{

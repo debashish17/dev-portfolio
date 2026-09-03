@@ -5,6 +5,7 @@
  * It is included in `src/index.html`.
  */
 
+import "./lib/xray/boot-lcp.js"; // must run before first paint — records LCP candidates for x-ray mode
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";

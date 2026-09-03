@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { motion, useTransform } from 'motion/react';
+import { motion, useTransform, useMotionValue, animate } from 'motion/react';
+import { useXRayRegister } from '../components/xray/hooks.js';
+import { xv } from '../components/xray/descriptors.js';
+import { useRenderCount } from '../lib/xray/render-count.js';
+import { takePendingProject } from '../lib/site-bus.js';
 import { useRoute, useMouseParallaxMV, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
 
 function useIsMobile() {
@@ -18,10 +22,17 @@ function useIsMobile() {
 const PROJECTS = [
   {
     id: 'llm-vul',
+    repoUrl: 'https://github.com/debashish17/LLM-VUL',
     no: '01',
     title: 'LLM-VUL',
     tag: 'AI · SECURITY',
-    desc: 'C/C++ vulnerability detection platform combining static analysis with two ML layers — gradient boosting ensemble (ROC-AUC 0.905) and QLoRA fine-tuned CodeBERT (F1 0.75, Recall 91.1%).',
+    desc: 'Point it at any GitHub repo and it scans the C/C++. Static analysis and ML run as two independent layers — never merged, so each signal stands on its own.',
+    bullets: [
+      'Layer 1 — CppCheck, Flawfinder and Semgrep catch deterministic pattern violations.',
+      'Layer 2, your pick — a gradient-boosting ensemble over 304 features (CPU-only), or QLoRA CodeBERT tuning just 1.4% of its parameters.',
+      'Trained on 718K functions from DiverseVul, MegaVul and Devign, at an 11.7:1 safe-to-vulnerable ratio.',
+      'Limits published, not hidden: 53–64% precision, and 99.7% C training data means C++ generalises poorly.',
+    ],
     stack: ['Python', 'FastAPI', 'React', 'PyTorch', 'XGBoost', 'CodeBERT', 'Docker'],
     metrics: [{ k: 'ROC-AUC', v: '0.905' }, { k: 'RECALL', v: '91.1%' }, { k: 'CORPUS', v: '718K' }],
     color: 'var(--red)',
@@ -29,46 +40,74 @@ const PROJECTS = [
   },
   {
     id: 'sitesmith',
+    repoUrl: 'https://github.com/debashish17/Sitesmith',
     no: '02',
     title: 'SITESMITH',
     tag: 'AI · WEB',
-    desc: 'AI-driven platform converting natural language requirements into functional web applications using LLM-based code generation and vector search for code regeneration.',
-    stack: ['React', 'TypeScript', 'Express.js', 'MongoDB', 'LLM', 'Vector Search'],
+    desc: 'Describe a web app in plain English, get a working one — then keep talking to it to change it. The interesting problem is not generation, it is editing without rewriting everything.',
+    bullets: [
+      'FAISS vector search locates the code a request actually touches, so a change regenerates only the affected files instead of the whole project.',
+      'Every request is scored before the model is called: intent, target elements, affected files, and a 0–100% confidence rating that prompts you to clarify vague asks.',
+      'Monaco editor with a WebContainer live preview, terminal and file explorer, all in the browser.',
+      'Pluggable model providers — NVIDIA free tier or Claude.',
+    ],
+    stack: ['React', 'TypeScript', 'Express.js', 'MongoDB', 'FAISS', 'Vector Search'],
     metrics: [{ k: 'INPUT', v: 'NL' }, { k: 'OUTPUT', v: 'APP' }, { k: 'EDITOR', v: 'LIVE' }],
     color: 'var(--ink)',
     accent: 'var(--red)',
   },
   {
     id: 'flux',
+    repoUrl: 'https://github.com/debashish17/Flux',
     no: '03',
     title: 'FLUX',
     tag: 'AI · DOCS',
-    desc: 'Full-stack AI document and presentation generation platform enabling conversational creation and iterative refinement of professional files.',
-    stack: ['React', 'TypeScript', 'FastAPI', 'PostgreSQL', 'Google Gemini', 'JWT'],
-    metrics: [{ k: 'MODEL', v: 'GEMINI' }, { k: 'AUTH', v: 'JWT' }, { k: 'EDIT', v: 'RICH' }],
+    desc: 'Conversational .docx and .pptx generation. The AI plans a structure, then you refine it section by section — the opposite of one-shotting a document and hoping.',
+    bullets: [
+      'Dislike a section, say why, and only that section regenerates against your feedback — the rest stays untouched.',
+      'Inline editing, add/remove/reorder sections, and a 1.5s debounced auto-save so nothing is lost.',
+      'Gemini Flash writes the content; python-docx and python-pptx emit real, downloadable files.',
+      'JWT auth over Prisma + PostgreSQL, with per-project chat history the assistant can read back.',
+    ],
+    stack: ['React 19', 'FastAPI', 'PostgreSQL', 'Prisma', 'Google Gemini', 'JWT'],
+    metrics: [{ k: 'MODEL', v: 'GEMINI' }, { k: 'AUTH', v: 'JWT' }, { k: 'EXPORT', v: 'DOCX/PPTX' }],
     color: 'var(--ochre)',
     accent: 'var(--ink)',
   },
   {
     id: 'ttsched',
+    repoUrl: 'https://github.com/debashish17/TT-Scheduler',
     no: '04',
     title: 'TT-SCHEDULER',
     tag: 'CONSTRAINT · WEB',
-    desc: 'Conflict-free academic timetable platform solving an NP-hard scheduling problem in under 60s using Google OR-Tools CP-SAT with 8 hard constraints. 7-step onboarding wizard, Excel I/O.',
-    stack: ['React', 'FastAPI', 'OR-Tools', 'PostgreSQL', 'Supabase', 'Docker'],
-    metrics: [{ k: 'SOLVE', v: '<60s' }, { k: 'CONSTR', v: '8' }, { k: 'STEPS', v: '7' }],
+    desc: 'Building a timetable for hundreds of students, dozens of faculty and a fixed number of rooms is NP-hard. This solves it in under 60 seconds, with zero clashes guaranteed rather than merely likely.',
+    bullets: [
+      'OR-Tools CP-SAT enforces 8 hard constraints — faculty, room and batch overlap, capacity, contact hours, workload, room features, consecutive labs.',
+      'Any violation discards the entire solution — there is no partially valid timetable.',
+      'A 7-step wizard takes an institution from departments to generation, with Excel bulk import.',
+      'State snapshots persist to Supabase — resume across devices, restore any past timetable.',
+    ],
+    stack: ['React 18', 'FastAPI', 'OR-Tools', 'PostgreSQL', 'Supabase', 'Celery'],
+    metrics: [{ k: 'SOLVE', v: '<60s' }, { k: 'CONSTR', v: '8' }, { k: 'VIEWS', v: '4' }],
     color: 'var(--red)',
     accent: 'var(--ochre)',
     liveUrl: 'https://tt-scheduler.vercel.app/',
   },
   {
     id: 'riverside',
+    repoUrl: 'https://github.com/debashish17/Riverside',
     no: '05',
     title: 'COLLAB · LIVE',
     tag: 'REAL-TIME · MEDIA',
-    desc: 'Real-time video collaboration platform supporting peer-to-peer streaming and local recording. WebRTC + Socket.IO signalling, FFmpeg media processing, JWT-secured backend.',
-    stack: ['WebRTC', 'Socket.IO', 'JWT', 'PostgreSQL', 'FFmpeg'],
-    metrics: [{ k: 'PROTOCOL', v: 'P2P' }, { k: 'SIGNAL', v: 'WS' }, { k: 'PROC', v: 'FFMPEG' }],
+    desc: 'Multi-participant video sessions that record themselves, in the shape of Riverside.fm. Video travels peer-to-peer; the recording is captured locally so quality does not depend on the call.',
+    bullets: [
+      'WebRTC carries the media directly between peers, with Socket.IO handling only signalling.',
+      'The MediaRecorder API captures in the background from session start, then files the result to disk or S3.',
+      'Recordings are organised by project behind JWT auth, over Prisma + PostgreSQL.',
+      'Fully containerised with Docker Compose, including health and metrics endpoints.',
+    ],
+    stack: ['WebRTC', 'Socket.IO', 'Express', 'Prisma', 'PostgreSQL', 'AWS S3'],
+    metrics: [{ k: 'TRANSPORT', v: 'P2P' }, { k: 'SIGNAL', v: 'WS' }, { k: 'STORE', v: 'S3' }],
     color: 'var(--ink)',
     accent: 'var(--red)',
   },
@@ -76,10 +115,31 @@ const PROJECTS = [
 
 export default function WorkPage() {
   const [active, setActive] = useState(null);
+
+  // The chat can deep-link into a project. Covers both orders: Work already
+  // mounted (event), and Work mounting right after a route change (pending).
+  useEffect(() => {
+    const pending = takePendingProject();
+    if (pending) setActive(pending);
+    const onOpen = (e) => { takePendingProject(); setActive(e.detail?.id ?? null); };
+    window.addEventListener('site:open-project', onOpen);
+    return () => window.removeEventListener('site:open-project', onOpen);
+  }, []);
   const isMobile = useIsMobile();
   // MotionValue parallax — same feel, but no page re-render per mousemove
   const mouse = useMouseParallaxMV(isMobile ? 0 : 4);
   const discParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * 5}px, ${y * 5}px)`);
+
+  // Publish to x-ray mode. No scroll timeline on this page — pointer parallax only.
+  useXRayRegister('work', {
+    variant: isMobile ? 'mobile' : 'desktop', timeline: null, scroller: null,
+    values: {
+      mouseX: xv.raw(mouse.x, [-4, 4], '', 'useMouseParallaxMV.x (unsprung)'),
+      mouseY: xv.raw(mouse.y, [-4, 4], '', 'useMouseParallaxMV.y (unsprung)'),
+      discParallax: xv.transform(discParallax, 'decor disc · translate'),
+    },
+    notes: ['card width: CSS transition flex 0.6s', 'deconstruct: MotionValue tween 700ms'],
+  });
 
   return (
     <div className="paper-bg" style={{
@@ -117,7 +177,7 @@ export default function WorkPage() {
       </div>
 
       {/* Background poster shapes */}
-      <motion.div style={{
+      <motion.div data-xray="DECOR · DISC" data-xray-values="mouseX,mouseY" style={{
         position: 'absolute',
         right: -120, top: 80,
         width: 380, height: 380,
@@ -172,9 +232,20 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
   const isMobile = useIsMobile();
   const expanded = hover && !anyActive;
 
+  // Collapsed titles are laid out in writing-mode: vertical-rl, so the block
+  // height is set by the longest UNBREAKABLE run, not the whole string —
+  // 'WHITE-LABEL' wraps at the hyphen and fits, 'MEGOFOREX' cannot wrap at all.
+  // Archivo Black's widest caps run ~0.76em/char and the card gives us ~330px,
+  // so a flat 64px clipped every 9-char run (MEGOFOREX, SITESMITH, TT-SCHEDULER).
+  const longestRun = Math.max(...project.title.split(/[\s·-]+/).filter(Boolean).map(w => w.length));
+  const vTitleSize = longestRun >= 9 ? 'clamp(26px, 3vw, 44px)'
+    : longestRun >= 7 ? 'clamp(32px, 3.6vw, 52px)'
+    : 'clamp(40px, 4.5vw, 64px)';
+
   return (
     <div
       data-magnet
+      data-xray={`CARD ${project.no}`}
       className="work-project-card"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -199,6 +270,7 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
         top: 24, left: 24, right: 24,
         display: 'flex', flexDirection: 'column', gap: 8,
         pointerEvents: 'none',
+        zIndex: 2,
       }}>
         <div className="mono" style={{ fontSize: 11, opacity: 0.7 }}>№ {project.no}</div>
         <div className="label" style={{ opacity: 0.7 }}>{project.tag}</div>
@@ -221,7 +293,7 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
             bottom: 0, left: 0,
           }}>
             <div className="display" style={{
-              fontSize: 'clamp(40px, 4.5vw, 64px)',
+              fontSize: vTitleSize,
               letterSpacing: '-0.03em',
               whiteSpace: isMobile ? 'nowrap' : 'normal',
               overflow: isMobile ? 'hidden' : 'visible',
@@ -314,6 +386,7 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
         opacity: 0.15,
         transition: 'font-size 0.6s',
         pointerEvents: 'none',
+        zIndex: 1,
       }}>
         {project.no}
       </div>
@@ -322,29 +395,33 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
 }
 
 function ProjectDetail({ project, onClose }) {
-  // Deconstructed view: project explodes into separated geometric pieces
-  const [t, setT] = useState(0);
+  // Deconstructed view: project explodes into separated geometric pieces.
+  // One MotionValue tween drives every piece through useTransform, so Motion
+  // writes the styles and React renders this overlay exactly once — it used to
+  // setState from a rAF loop for 700ms (~42 renders of this whole subtree).
+  useRenderCount('ProjectDetail');
+  const t = useMotionValue(0);
   const isMobile = useIsMobile();
   useEffect(() => {
-    const start = Date.now();
-    let raf;
-    const tick = () => {
-      const dt = Math.min(1, (Date.now() - start) / 700);
-      setT(easeOut(dt));
-      if (dt < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    const controls = animate(t, 1, { duration: 0.7, ease: easeOut });
+    return () => controls.stop();
+  }, [t]);
+  const piece1T = useTransform(t, (v) => `translateX(${(1 - v) * -200}px) translateZ(${v * 100}px) rotate(-3deg)`);
+  const piece2T = useTransform(t, (v) => `translateY(${(1 - v) * -100}px) translateZ(${v * 50}px) rotate(1deg)`);
+  const piece4T = useTransform(t, (v) => `translateY(${(1 - v) * 150}px) translateZ(${v * 60}px)`);
+  const piece3T = useTransform(t, (v) => `translateX(${(1 - v) * 200}px) translateZ(${v * 80}px)`);
+  const piece5T = useTransform(t, (v) => `translateY(${(1 - v) * 120}px) translateZ(${v * 40}px)`);
+  const decorT = useTransform(t, (v) => `translateZ(${-v * 100}px) scale(${v})`);
 
   return (
-    <div className="work-detail-overlay" style={{
+    <motion.div className="work-detail-overlay" style={{
       position: 'fixed',
       inset: isMobile ? 0 : 56,
       zIndex: 50,
       pointerEvents: 'auto',
+      // 96%-opaque cream already reads as a scrim; the 2px backdrop blur it used
+      // to carry was invisible and cost a full-screen surface every frame.
       background: 'rgba(242,234,211,0.96)',
-      backdropFilter: 'blur(2px)',
       perspective: isMobile ? 'none' : 1400,
       opacity: isMobile ? 1 : t,
       overflowY: isMobile ? 'auto' : 'hidden',
@@ -385,7 +462,7 @@ function ProjectDetail({ project, onClose }) {
         transformStyle: 'preserve-3d',
       }}>
         {/* Piece 1: number plate */}
-        <div className="work-detail-piece1" style={isMobile ? {
+        <motion.div className="work-detail-piece1" data-xray="DETAIL · PLATE" data-xray-render="ProjectDetail" style={isMobile ? {
           background: project.color,
           color: project.color === 'var(--ochre)' ? 'var(--ink)' : 'var(--cream)',
           padding: '12px 18px',
@@ -397,7 +474,7 @@ function ProjectDetail({ project, onClose }) {
         } : {
           position: 'absolute',
           top: 80, left: '5%',
-          transform: `translateX(${(1 - t) * -200}px) translateZ(${t * 100}px) rotate(-3deg)`,
+          transform: piece1T,
           background: project.color,
           color: project.color === 'var(--ochre)' ? 'var(--ink)' : 'var(--cream)',
           padding: '16px 22px',
@@ -412,15 +489,15 @@ function ProjectDetail({ project, onClose }) {
             fontSize: isMobile ? 48 : 80,
             lineHeight: 0.85,
           }}>{project.no}</div>
-        </div>
+        </motion.div>
 
         {/* Piece 2: title slab */}
-        <div className="work-detail-piece2" style={isMobile ? {
+        <motion.div className="work-detail-piece2" data-xray="DETAIL · TITLE" style={isMobile ? {
           /* nothing — just normal flow */
         } : {
           position: 'absolute',
-          top: 90, left: '28%', right: '32%',
-          transform: `translateY(${(1 - t) * -100}px) translateZ(${t * 50}px) rotate(1deg)`,
+          top: 90, left: '21%', right: '30%',
+          transform: piece2T,
         }}>
           <div className="label" style={{ color: 'var(--red)', marginBottom: 8 }}>{project.tag}</div>
           <div className="display" style={{
@@ -428,11 +505,12 @@ function ProjectDetail({ project, onClose }) {
             color: 'var(--ink)',
             letterSpacing: '-0.04em',
             lineHeight: 0.85,
+            whiteSpace: isMobile ? 'normal' : 'nowrap',
           }}>{project.title}</div>
-        </div>
+        </motion.div>
 
         {/* Piece 4: metrics */}
-        <div className="work-detail-piece4" style={isMobile ? {
+        <motion.div className="work-detail-piece4" data-xray="DETAIL · READINGS" style={isMobile ? {
           display: 'flex',
           flexDirection: 'row',
           gap: 8,
@@ -441,7 +519,7 @@ function ProjectDetail({ project, onClose }) {
           position: 'absolute',
           right: '5%', top: 80,
           width: 200,
-          transform: `translateY(${(1 - t) * 150}px) translateZ(${t * 60}px)`,
+          transform: piece4T,
           display: 'flex',
           flexDirection: 'column',
           gap: 8,
@@ -466,37 +544,73 @@ function ProjectDetail({ project, onClose }) {
               }}>{m.v}</div>
             </div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Piece 3: BRIEF */}
-        <div className="work-detail-piece3" style={isMobile ? {
+        <motion.div className="work-detail-piece3" data-xray="DETAIL · BRIEF" style={isMobile ? {
           padding: '16px 20px',
           background: 'var(--cream)',
           border: '2px solid var(--ink)',
           boxShadow: '6px 6px 0 var(--red)',
         } : {
           position: 'absolute',
-          top: '46%', left: '5%', right: '32%',
-          transform: `translateX(${(1 - t) * 200}px) translateZ(${t * 80}px)`,
-          padding: '20px 28px',
+          // NO bottom anchor on purpose: pinning top+bottom fixes the height
+          // and forces a scrollbar the moment the copy exceeds it. The box
+          // sizes to its text instead. It fits because titles are now one line
+          // (so it can start high) and the bullets run in two columns.
+          top: 196, left: '5%', right: '30%',
+          transform: piece3T,
+          padding: '16px 26px',
           background: 'var(--cream)',
           border: '2px solid var(--ink)',
           boxShadow: '8px 8px 0 var(--red)',
         }}>
           <div className="label" style={{ color: 'var(--red)', marginBottom: 10 }}>BRIEF</div>
-          <div style={{ fontSize: 14, lineHeight: 1.5 }}>{project.desc}</div>
-        </div>
+          <div style={{ fontSize: 13.5, lineHeight: 1.45 }}>{project.desc}</div>
+          {project.bullets && (
+            <ul className="work-detail-bullets">
+              {project.bullets.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+          )}
+        </motion.div>
 
         {/* Piece 5: stack chips */}
-        <div className="work-detail-piece5" style={isMobile ? {
+        <motion.div className="work-detail-piece5" data-xray="DETAIL · INSTRUMENTS" style={isMobile ? {
           paddingBottom: 8,
         } : {
           position: 'absolute',
           bottom: 32, left: '5%', right: '5%',
-          transform: `translateY(${(1 - t) * 120}px) translateZ(${t * 40}px)`,
+          transform: piece5T,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
             <div className="label" style={{ color: 'var(--red)' }}>INSTRUMENTS</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+            {project.repoUrl && (
+              <a
+                href={project.repoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.12em',
+                  padding: '8px 18px',
+                  background: 'transparent',
+                  color: 'var(--ink)',
+                  border: '2px solid var(--ink)',
+                  textDecoration: 'none',
+                  display: 'inline-block',
+                  transition: 'background 0.2s, color 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--ink)'; e.currentTarget.style.color = 'var(--cream)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ink)'; }}
+              >
+                CODE ↗
+              </a>
+            )}
             {project.liveUrl && (
               <a
                 href={project.liveUrl}
@@ -521,6 +635,7 @@ function ProjectDetail({ project, onClose }) {
                 LIVE SITE ↗
               </a>
             )}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {project.stack.map(s => (
@@ -534,21 +649,21 @@ function ProjectDetail({ project, onClose }) {
               }}>{s}</span>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Decorative geometric explosions - kept behind */}
-        <div style={{
+        <motion.div style={{
           position: 'absolute',
           top: '70%', right: '12%',
           width: 160, height: 160,
           borderRadius: '50%',
           background: project.accent,
           opacity: 0.12,
-          transform: `translateZ(${-t * 100}px) scale(${t})`,
+          transform: decorT,
           pointerEvents: 'none',
         }} />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
