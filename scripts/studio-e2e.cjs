@@ -70,9 +70,9 @@ const assert = (c, msg) => { if (!c) throw new Error(msg); };
     const key = async (k, code, vk) => { await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk, text: k.length === 1 ? k : undefined }); await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, windowsVirtualKeyCode: vk }); };
     const mouse = (type, x, y, extra = {}) => cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1, ...extra });
     const clickAt = async (x, y) => { await mouse('mouseMoved', x, y); await mouse('mousePressed', x, y); await mouse('mouseReleased', x, y); };
-    const rect = async (sel) => { const r = await js(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, cx: b.left + b.width / 2, cy: b.top + b.height / 2 }; })()`); assert(r, `no element ${sel}`); return r; };
+    const rect = async (sel) => { const r = await js(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; e.scrollIntoView({ block: 'center', inline: 'nearest' }); const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height, cx: b.left + b.width / 2, cy: b.top + b.height / 2 }; })()`); assert(r, `no element ${sel}`); return r; };
     const clickSel = async (sel) => { const r = await rect(sel); await clickAt(r.cx, r.cy); await sleep(120); };
-    const clickText = async (sel, text) => { const r = await js(`(() => { const e = [...document.querySelectorAll(${JSON.stringify(sel)})].find(x => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (!e) return null; const b = e.getBoundingClientRect(); return { cx: b.left + b.width / 2, cy: b.top + b.height / 2 }; })()`); assert(r, `no ${sel} with text ${text}`); await clickAt(r.cx, r.cy); await sleep(150); };
+    const clickText = async (sel, text) => { const r = await js(`(() => { const e = [...document.querySelectorAll(${JSON.stringify(sel)})].find(x => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (!e) return null; e.scrollIntoView({ block: 'center', inline: 'nearest' }); const b = e.getBoundingClientRect(); return { cx: b.left + b.width / 2, cy: b.top + b.height / 2 }; })()`); assert(r, `no ${sel} with text ${text}`); await clickAt(r.cx, r.cy); await sleep(150); };
     const waitFor = async (expr, ms = 8000, what = expr) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await js(expr)) return true; await sleep(150); } throw new Error(`timeout: ${what}`); };
     const waitLoader = async () => waitFor(`!document.querySelector('.loader-stage') && !!document.querySelector('.stage')`, 15000, 'loader');
     const shot = async (name) => { if (!shots) return; fs.mkdirSync(shots, { recursive: true }); const s = await cdp.send('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(path.join(shots, `${name}.png`), Buffer.from(s.data, 'base64')); };
@@ -128,6 +128,7 @@ const assert = (c, msg) => { if (!c) throw new Error(msg); };
       assert(on.includes('MULTIPLY') && on.includes('PLATE SHIFT'), `chips on: ${on}`);
       return on;
     });
+    await shot('studio-inspector');
 
     await step('PEN: three clicks + Enter → a custom shape', async () => {
       const before = await layers();
@@ -194,11 +195,11 @@ const assert = (c, msg) => { if (!c) throw new Error(msg); };
     let posterId = null;
     await step('PUBLISH → live poster with a share link', async () => {
       await clickText('.st-btn', 'PUBLISH');
-      await waitFor(`/IT IS UP|HELD|REFUSED/.test(document.querySelector('.st-publish')?.textContent || '') || !!document.querySelector('.st-err') || !!document.querySelector('.st-notice')`, 60000, 'publish result');
-      const txt = await js(`document.querySelector('.st-publish')?.textContent`);
+      await waitFor(`/IT IS UP|HELD|REFUSED/.test(document.querySelector('.st-result')?.textContent || '') || !!document.querySelector('.st-err') || !!document.querySelector('.st-notice')`, 60000, 'publish result');
+      const txt = await js(`document.querySelector('.st-result')?.textContent`);
       const err = await js(`document.querySelector('.st-err')?.textContent || document.querySelector('.st-notice')?.textContent || ''`);
       assert(/IT IS UP/.test(txt), `publish result: ${err || txt.slice(0, 120)}`);
-      posterId = await js(`document.querySelector('.st-publish a[href^="/p/"]')?.getAttribute('href').slice(3)`);
+      posterId = await js(`document.querySelector('.st-result a[href^="/p/"]')?.getAttribute('href').slice(3)`);
       assert(posterId, 'no poster link');
       return posterId;
     });

@@ -89,11 +89,15 @@ export default function StudioPage() {
   // 'loading' keeps the composer unmounted while remix layers are in flight —
   // otherwise a fresh board flashes for half a second and is then replaced.
   const tab = view.kind === 'wall' ? 'wall' : view.kind === 'poster' ? 'poster' : view.kind === 'remix-loading' ? 'loading' : 'compose';
+  const composing = tab === 'compose' || tab === 'loading';
 
+  // The composer is one screen on desktop: the page itself never scrolls, the
+  // board scales to the space left, and the two side columns scroll inside
+  // themselves only on short displays. The wall and poster views scroll.
   return (
-    <div ref={scrollRef} className="paper-bg st-page" style={{ position: 'absolute', inset: 0, overflowX: 'hidden', overflowY: 'auto' }}>
+    <div ref={scrollRef} className={`paper-bg st-page ${composing ? 'is-compose' : ''}`} style={{ position: 'absolute', inset: 0, overflowX: 'hidden', overflowY: composing && !isMobile ? 'hidden' : 'auto' }}>
       <div className="grid-overlay" />
-      <div className="st-page-inner">
+      <div className={`st-page-inner ${composing ? 'is-compose' : ''}`}>
         <header className={`st-head ${tab === 'compose' || tab === 'loading' ? '' : 'is-slim'}`}>
           <div>
             {/* The wall and the poster view carry their own label and title */}

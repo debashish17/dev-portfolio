@@ -529,16 +529,13 @@ export default function Composer({ initialDoc, remixOf, onPublished, onOpenWall 
           </div>
         )}
 
-        <div className="st-card st-publish" data-xray="STUDIO · PUBLISH">
-          <div className="label" style={{ color: 'var(--red)' }}>PUBLISH</div>
+        <div className="st-mk"><span className="st-mk-n">VI.E</span><span className="label">KEEP</span><span className="st-mk-r" /></div>
+        <div className="st-stack st-result" data-xray="STUDIO · PUBLISH">
           {publish.stage === 'idle' || publish.stage === 'error' ? (
             <>
-              <p>Screened automatically in about two seconds — explicit content is refused, everything else goes up, faces included. Then share it: likes decide the ten on the wall.</p>
+              <button type="button" className="st-btn clickable" onClick={exportPng} data-magnet>EXPORT PNG</button>
+              <button type="button" className="st-btn st-btn-ink clickable" onClick={doPublish} data-magnet>PUBLISH →</button>
               {publish.stage === 'error' && <p className="st-err mono">{publish.error}</p>}
-              <div className="st-stack">
-                <button type="button" className="st-btn clickable" onClick={exportPng} data-magnet>EXPORT PNG</button>
-                <button type="button" className="st-btn st-btn-ink clickable" onClick={doPublish} data-magnet>PUBLISH →</button>
-              </div>
             </>
           ) : publish.stage === 'done' ? (
             <PublishResult r={publish} onOpenWall={onOpenWall} onAgain={() => setPublish({ stage: 'idle' })} />
