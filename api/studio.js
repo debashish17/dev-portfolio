@@ -7,6 +7,7 @@
 //   GET  png?id=&kind=     poster/card bytes when no Blob store is connected
 //   POST publish           { doc, png, originals[], remixOf } → screen → store
 //   POST card              { id, card } owner uploads the rendered share card
+//   POST thumb             { id, thumb } owner or admin attaches a 240 px grid thumbnail
 //   POST like              { id } toggle, one per poster per browser id
 //   POST report            { id } two reports hide a poster until the owner looks
 //   GET  rescreen          cron: re-run the screen over held posters (Bearer CRON_SECRET)
@@ -32,6 +33,7 @@ const PUBLISH_PER_DAY = 300;                                   // global
 const SCREEN_PER_DAY = Number(env('STUDIO_SCREEN_PER_DAY')) || 80; // reserve the rest of the free tier for the chat
 const PNG_MAX = 560_000;    // data URL chars — a 480×640 four-ink PNG with grain is ~80–350 KB
 const CARD_MAX = 760_000;
+const THUMB_MAX = 200_000;
 const ORIG_MAX = 260_000;
 const LATEST_KEEP = 60;
 const ARCHIVE_PAGE = 24;
@@ -127,6 +129,7 @@ async function handler(request) {
       case 'png': return await png(url);
       case 'publish': return await publish(request, uid);
       case 'card': return await card(request, uid);
+      case 'thumb': return await thumb(request, url, uid);
       case 'like': return await like(request, uid);
       case 'report': return await report(request, uid);
       case 'rescreen': return await rescreen(request, url);
@@ -212,7 +215,7 @@ async function doc(request, url) {
 
 async function png(url) {
   const id = str(url.searchParams.get('id'), 16).toLowerCase();
-  const kind = url.searchParams.get('kind') === 'card' ? 'card' : 'png';
+  const kind = ['card', 'thumb'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : 'png';
   const b64 = await r1('GET', K.bytes(id, kind));
   if (!b64) return new Response('not found', { status: 404 });
   return new Response(Buffer.from(b64, 'base64'), { status: 200, headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' } });
@@ -236,6 +239,7 @@ async function publish(request, uid) {
   if (v.error) return json(400, { error: `${ERR.invalid} (${v.error})` });
   const pngIn = typeof body.png === 'string' && body.png.length <= PNG_MAX ? decodeDataUrl(body.png, ['image/png']) : null;
   if (!pngIn) return json(400, { error: ERR.png });
+  const thumbIn = typeof body.thumb === 'string' && body.thumb.length <= THUMB_MAX ? decodeDataUrl(body.thumb, ['image/png']) : null;
   const originals = (Array.isArray(body.originals) ? body.originals : []).slice(0, 2)
     .map((o) => (typeof o === 'string' && o.length <= ORIG_MAX ? decodeDataUrl(o, ['image/jpeg', 'image/png']) : null)).filter(Boolean);
   const remixOf = /^[a-z0-9]{4,12}$/i.test(body.remixOf || '') ? String(body.remixOf).toLowerCase() : null;
@@ -261,13 +265,14 @@ async function publish(request, uid) {
   const week = isoWeek();
   const base = env('SITE_ORIGIN') || new URL(request.url).origin;
   const pngUrl = await storeBytes(id, 'png', pngIn, base);
+  const thumbUrl = thumbIn ? await storeBytes(id, 'thumb', thumbIn, base) : null;
   let docUrl = null;
   if (blobConfigured()) docUrl = await putBlob(`studio/${id}/doc.json`, JSON.stringify(v.doc), 'application/json');
   else await setJson(K.doc(id), v.doc);
 
   const rec = {
     id, number, at: new Date().toISOString(), week, seed: v.doc.seed, layers: v.doc.layers.length, photos: v.photos,
-    status, likes: 0, reports: 0, uid, png: pngUrl, card: null, docUrl, remixOf,
+    status, likes: 0, reports: 0, uid, png: pngUrl, thumb: thumbUrl, card: null, docUrl, remixOf,
     screen: screen ? { verdict: screen.verdict, model: screen.model || null, cached: Boolean(screen.cached) } : null,
   };
   const cmds = [['SET', K.rec(id), JSON.stringify(rec)], ['LPUSH', K.mine(uid), id], ['LTRIM', K.mine(uid), 0, 49]];
@@ -302,6 +307,30 @@ async function card(request, uid) {
   await setJson(K.rec(id), rec);
   if (previous && previous.startsWith('http') && previous !== rec.card) await delBlobs([previous]);
   return json(200, { id, card: rec.card });
+}
+
+// The grid thumbnail, attachable after the fact (owner from the browser, or the
+// admin key for backfills). Versioned path so a replacement is never cached stale.
+async function thumb(request, url, uid) {
+  if (request.method !== 'POST') return json(405, { error: ERR.method });
+  const body = await readBody(request);
+  const id = str(body?.id, 16).toLowerCase();
+  const rec = await getJson(K.rec(id));
+  if (!rec) return json(404, { error: ERR.missing });
+  const asAdmin = authorised(request, new URL(`${url.origin}${url.pathname}?key=${encodeURIComponent(body?.key || '')}`));
+  if (!asAdmin) {
+    const blocked = await gate(request, { scope: 'publish', perMinute: PUBLISH_PER_MIN * 2 });
+    if (blocked) return blocked;
+    if (rec.uid !== uid) return json(403, { error: ERR.owner });
+  }
+  const img = typeof body.thumb === 'string' && body.thumb.length <= THUMB_MAX ? decodeDataUrl(body.thumb, ['image/png']) : null;
+  if (!img) return json(400, { error: ERR.png });
+  const base = env('SITE_ORIGIN') || new URL(request.url).origin;
+  const previous = rec.thumb;
+  rec.thumb = await storeBytes(id, `thumb-${Date.now().toString(36)}`, img, base);
+  await setJson(K.rec(id), rec);
+  if (previous && previous.startsWith('http') && previous !== rec.thumb) await delBlobs([previous]);
+  return json(200, { id, thumb: rec.thumb });
 }
 
 // ------------------------------------------------------------------ likes & reports
@@ -366,7 +395,7 @@ async function rescreen(request, url) {
     const v = await screenImages([bytes]);
     out.checked++;
     if (v.verdict === 'pass') { rec.status = 'live'; rec.screen = { verdict: 'pass', model: v.model || null, rescreened: true }; await redis(['SET', K.rec(id), JSON.stringify(rec)], ['SREM', K.held, id], ...liveCmds(id, rec.week)); out.live++; }
-    else if (v.verdict === 'reject') { rec.status = 'rejected'; await redis(['SET', K.rec(id), JSON.stringify(rec)], ['SREM', K.held, id]); await delBlobs([rec.png, rec.card, rec.docUrl].filter((u) => u && u.startsWith('http'))); out.rejected++; }
+    else if (v.verdict === 'reject') { rec.status = 'rejected'; await redis(['SET', K.rec(id), JSON.stringify(rec)], ['SREM', K.held, id]); await delBlobs([rec.png, rec.thumb, rec.card, rec.docUrl].filter((u) => u && u.startsWith('http'))); out.rejected++; }
     else out.held++;
   }
   return json(200, out);
@@ -390,6 +419,6 @@ async function remove(request) {
   if (!rec) return json(404, { error: ERR.missing });
   rec.status = 'removed';
   await redis(['SET', K.rec(id), JSON.stringify(rec)], ['ZREM', K.week(rec.week), id], ['ZREM', K.all, id], ['ZREM', K.archive, id], ['LREM', K.latest, 0, id], ['SREM', K.held, id], ['DEL', K.doc(id), K.bytes(id, 'png'), K.bytes(id, 'card')]);
-  await delBlobs([rec.png, rec.card, rec.docUrl].filter((u) => u && u.startsWith('http')));
+  await delBlobs([rec.png, rec.thumb, rec.card, rec.docUrl].filter((u) => u && u.startsWith('http')));
   return json(200, { id, status: 'removed' });
 }

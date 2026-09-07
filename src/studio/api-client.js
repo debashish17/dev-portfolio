@@ -39,6 +39,7 @@ export const studioApi = {
   doc: (id) => call('doc', { query: { id } }),
   publish: (payload) => call('publish', { method: 'POST', body: payload }),
   card: (id, card) => call('card', { method: 'POST', body: { id, card } }),
+  thumb: (id, thumb) => call('thumb', { method: 'POST', body: { id, thumb } }),
   like: (id) => call('like', { method: 'POST', body: { id } }),
   report: (id) => call('report', { method: 'POST', body: { id } }),
 };

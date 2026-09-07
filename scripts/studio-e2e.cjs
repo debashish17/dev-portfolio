@@ -209,6 +209,8 @@ const assert = (c, msg) => { if (!c) throw new Error(msg); };
       await clickText('.st-tabs-head .st-chip', 'THE WALL');
       await waitFor(`document.querySelectorAll('.st-ten-item').length > 0`, 8000, 'wall items');
       const n = await js(`document.querySelectorAll('.st-ten-item').length`);
+      const src = await js(`document.querySelector('.st-ten-item img')?.getAttribute('src') || ''`);
+      assert(/thumb/.test(src), `grid image is not the thumbnail: ${src.slice(0, 80)}`);
       const likesBefore = await js(`document.querySelector('.st-ten-item .st-likes')?.textContent.trim()`);
       await clickSel('.st-ten-item .st-like');
       await waitFor(`document.querySelector('.st-ten-item .st-like')?.classList.contains('is-on')`, 5000, 'liked');

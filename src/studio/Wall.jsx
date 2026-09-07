@@ -148,7 +148,7 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
               {top.map((p, i) => (
                 <li key={p.id} className={`st-ten-item ${i === 0 && RANKED.has(period) ? 'is-first' : ''} ${p.id === focusId ? 'is-focus' : ''}`}>
                   <button type="button" className="st-card-poster clickable" onClick={() => onOpenPoster(p.id)} data-magnet>
-                    <img src={p.png} alt={`Poster № ${p.number}`} loading="lazy" width="480" height="640" />
+                    <img src={p.thumb || p.png} alt={`Poster № ${p.number}`} loading="lazy" decoding="async" width="480" height="640" />
                     {RANKED.has(period) && <span className={`st-rank serif-display ${i === 0 ? 'is-red' : ''}`}>{i + 1}</span>}
                     {i === 0 && period === 'week' && <span className="st-ribbon mono">POSTER OF THE WEEK</span>}
                     {p.status === 'held' && <span className="st-badge mono">HELD · SCREENED TONIGHT</span>}
@@ -181,7 +181,7 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
                 {contenders.map((p) => (
                   <div key={p.id} className={`st-mini ${p.id === focusId ? 'is-focus' : ''}`}>
                     <button type="button" className="st-card-poster clickable" onClick={() => onOpenPoster(p.id)} data-magnet>
-                      <img src={p.png} alt={`Poster № ${p.number}`} loading="lazy" width="480" height="640" />
+                      <img src={p.thumb || p.png} alt={`Poster № ${p.number}`} loading="lazy" decoding="async" width="480" height="640" />
                       {p.status === 'held' && <span className="st-badge mono">HELD</span>}
                     </button>
                     <div className="st-cap mono"><span>№ {p.number}</span><span className="st-likes"><i /> {p.likes}</span></div>

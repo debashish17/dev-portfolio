@@ -464,12 +464,14 @@ export default function Composer({ initialDoc, remixOf, onPublished, onOpenWall 
     if (v.error) { setNotice(`Not yet — ${v.error}.`); return; }
     setPublish({ stage: 'rendering' });
     try {
-      // 1:1 board pixels — the wall shows it at ≤216px and the share card at 360px
+      // 1:1 board pixels for the poster page and share card, plus a 240 px
+      // thumbnail for the wall grid — a quarter of the bytes per card.
       const c = await renderPosterCanvas(v.doc, 480);
       const png = await blobToDataUrl(await canvasToBlob(c));
+      const thumb = await blobToDataUrl(await canvasToBlob(await renderPosterCanvas(v.doc, 240)));
       const originals = v.doc.layers.filter((l) => l.type === 'image').map((l) => prepRef.current.get(l.id)?.original).filter(Boolean);
       setPublish({ stage: 'screening', screened: needsScreen(v.doc) });
-      const r = await studioApi.publish({ doc: v.doc, png, originals, remixOf: remixOf || null });
+      const r = await studioApi.publish({ doc: v.doc, png, thumb, originals, remixOf: remixOf || null });
       // share card carries the number the server just assigned
       try {
         const card = await renderShareCard(v.doc, { id: r.id, number: r.number, photos: v.photos, likes: 0 });
