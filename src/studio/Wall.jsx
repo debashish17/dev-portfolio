@@ -63,7 +63,12 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
 
   const top = data?.top || [];
   const latest = data?.latest || [];
+  // contenders are the latest posters NOT already hanging among the ten
+  const topIds = new Set(top.map((p) => p.id));
+  const contenders = latest.filter((p) => !topIds.has(p.id));
+  const free = Math.max(0, 10 - top.length);
   const threshold = top.length >= 10 ? top[9].likes : 0;
+  const climbNote = free > 0 ? `${free} SPOT${free === 1 ? '' : 'S'} FREE · PUBLISH TO TAKE ONE` : `${threshold + 1} LIKES TAKES SPOT TEN · SHARE YOURS TO CLIMB`;
 
   return (
     <div className="st-wall">
@@ -133,11 +138,11 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
             </ol>
           )}
 
-          {period === 'week' && latest.length > 0 && (
+          {period === 'week' && contenders.length > 0 && (
             <div className="st-contenders">
-              <div className="st-mk"><span className="st-mk-n st-mk-red">VI.F</span><span className="label">CONTENDERS</span><span className="st-mk-r" /><span className="mono st-dim">THE LATEST · {threshold} LIKES TAKES SPOT TEN · SHARE YOURS TO CLIMB</span></div>
+              <div className="st-mk"><span className="st-mk-n st-mk-red">VI.F</span><span className="label">CONTENDERS</span><span className="st-mk-r" /><span className="mono st-dim st-mk-note">THE LATEST · {climbNote}</span></div>
               <div className="st-minis">
-                {latest.map((p) => (
+                {contenders.map((p) => (
                   <div key={p.id} className={`st-mini ${p.id === focusId ? 'is-focus' : ''}`}>
                     <button type="button" className="st-card-poster clickable" onClick={() => onOpenPoster(p.id)} data-magnet>
                       <img src={p.png} alt={`Poster № ${p.number}`} loading="lazy" width="480" height="640" />

@@ -1163,6 +1163,7 @@ html, body {
 .st-mk-n { font-family: 'JetBrains Mono', monospace; width: 30px; height: 30px; background: var(--ink); color: var(--cream); display: grid; place-items: center; font-size: 9px; font-weight: 700; flex: none; }
 .st-mk-red { background: var(--red); }
 .st-mk-r { flex: 1; height: 2px; background: var(--ink); }
+.st-mk-note { font-size: 9px; letter-spacing: .1em; white-space: nowrap; }
 .st-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .st-tile { height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: var(--cream); border: 2px solid var(--ink); color: var(--ink); cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: .14em; padding: 0; }
 .st-tile:hover:not(:disabled) { background: var(--paper); }
