@@ -52,3 +52,6 @@ uploads/pasted-*
 
 # Design reference images (Wikimedia downloads, not site assets)
 references/
+
+# Studio PNG exports saved into the repo root while testing
+/poster-*.png
