@@ -113,6 +113,49 @@ const PROJECTS = [
   },
 ];
 
+// ---- Card typography -------------------------------------------------
+// Every card is set at ONE size in each state, driven by the longest title in
+// the set rather than by each card's own string. Sizing per card put five
+// different sizes on one row; a shelf of spines only reads as a shelf if the
+// type is identical along it. All five also run nowrap, because line COUNT
+// was disagreeing too — 'LLM-VUL' broke at its hyphen while 'SITESMITH', with
+// nowhere to break, did not, and in the expanded box a second line pushed the
+// blurb, chips and metrics down on two cards out of five.
+//
+// Measured in Chrome, Archivo Black at letter-spacing -0.04em (100px sample):
+//   LLM-VUL 4.61em · SITESMITH 5.81em · FLUX 2.76em
+//   TT-SCHEDULER 8.06em · COLLAB · LIVE 7.54em
+// so ~0.67em per cap is the safe upper bound to budget with.
+const LONGEST_TITLE = Math.max(...PROJECTS.map(p => p.title.length));
+
+// COLLAPSED: writing-mode vertical-rl, so the line runs DOWN the card and the
+// binding box is card HEIGHT, not width. The card is 100vh - 264px tall and
+// gives up ~104px to the № / tag block and the bottom inset, so the run has
+// about (100vh - 368px) to live in — 5vh clears LONGEST_TITLE * 0.67em at
+// every height from 720 to 1440. The vw leg only takes over on narrow-but-tall
+// windows, where width becomes the scarcer axis.
+const V_TITLE_SIZE = LONGEST_TITLE >= 11 ? 'clamp(26px, min(3vw, 5vh), 56px)'
+  : LONGEST_TITLE >= 8 ? 'clamp(30px, min(3.4vw, 6.5vh), 68px)'
+  : 'clamp(36px, min(4vw, 8.5vh), 84px)';
+
+// EXPANDED: the title is horizontal now, so the whole string binds against the
+// hovered card's width. That card is flex 3 of 7 units inside a row inset 64px
+// each side with four 16px gaps, less its own 24px padding either side:
+//   inner = (3/7) * (100vw - 192px) - 48px  =  0.4286vw - 130px
+// A plain vw fraction cannot track that — the -130px offset means the box is
+// 30% of the viewport at 1024 and 38% at 2560 — so the size is expressed as
+// the same affine curve, inner / (LONGEST_TITLE * 0.67em), with ~10% headroom.
+const EXPANDED_TITLE_SIZE = 'clamp(22px, calc(5.2vw - 18px), 96px)';
+
+// The ghost numeral tracked nothing at all: a flat 100/200px, cramped on a
+// 1024 laptop and lost on a 2560 display. It is now the same affine curve as
+// the card it sits in — collapsed cards are (100vw - 192px)/5, the expanded
+// one is 3/7 of the row — with the ratio anchored to how it looked at
+// 1600x900 (~0.35 of a collapsed card, ~0.33 of an expanded one) so the
+// design size is unchanged and only the other sizes move to match it.
+const GHOST_COLLAPSED = 'clamp(56px, calc(7vw - 13px), 150px)';
+const GHOST_EXPANDED = 'clamp(110px, calc(14.1vw - 27px), 300px)';
+
 export default function WorkPage() {
   const [active, setActive] = useState(null);
 
@@ -232,16 +275,6 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
   const isMobile = useIsMobile();
   const expanded = hover && !anyActive;
 
-  // Collapsed titles are laid out in writing-mode: vertical-rl, so the block
-  // height is set by the longest UNBREAKABLE run, not the whole string —
-  // 'WHITE-LABEL' wraps at the hyphen and fits, 'MEGOFOREX' cannot wrap at all.
-  // Archivo Black's widest caps run ~0.76em/char and the card gives us ~330px,
-  // so a flat 64px clipped every 9-char run (MEGOFOREX, SITESMITH, TT-SCHEDULER).
-  const longestRun = Math.max(...project.title.split(/[\s·-]+/).filter(Boolean).map(w => w.length));
-  const vTitleSize = longestRun >= 9 ? 'clamp(26px, 3vw, 44px)'
-    : longestRun >= 7 ? 'clamp(32px, 3.6vw, 52px)'
-    : 'clamp(40px, 4.5vw, 64px)';
-
   return (
     <div
       data-magnet
@@ -293,9 +326,9 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
             bottom: 0, left: 0,
           }}>
             <div className="display" style={{
-              fontSize: vTitleSize,
+              fontSize: V_TITLE_SIZE,
               letterSpacing: '-0.03em',
-              whiteSpace: isMobile ? 'nowrap' : 'normal',
+              whiteSpace: 'nowrap',
               overflow: isMobile ? 'hidden' : 'visible',
               textOverflow: isMobile ? 'ellipsis' : 'clip',
             }}>
@@ -307,8 +340,9 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
             transform: `translateZ(20px)`,
           }}>
             <div className="display" style={{
-              fontSize: 'clamp(48px, 5vw, 80px)',
+              fontSize: EXPANDED_TITLE_SIZE,
               letterSpacing: '-0.04em',
+              whiteSpace: 'nowrap',
               marginBottom: 16,
             }}>
               {project.title}
@@ -381,7 +415,7 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
         fontFamily: 'Bodoni Moda, serif',
         fontStyle: 'italic',
         fontWeight: 900,
-        fontSize: expanded ? 200 : 100,
+        fontSize: expanded ? GHOST_EXPANDED : GHOST_COLLAPSED,
         lineHeight: 0.8,
         opacity: 0.15,
         transition: 'font-size 0.6s',
