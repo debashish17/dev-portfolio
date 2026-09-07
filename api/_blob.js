@@ -10,6 +10,9 @@ export async function putBlob(pathname, body, contentType) {
     access: 'public',
     contentType,
     addRandomSuffix: false,
+    // paths are deterministic (studio/<id>/<kind>.png); re-attaching a share
+    // card rewrites the same path, which Blob refuses without this flag
+    allowOverwrite: true,
     cacheControlMaxAge: 60 * 60 * 24 * 365,
     token: env('BLOB_READ_WRITE_TOKEN'),
   });
