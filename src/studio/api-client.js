@@ -34,7 +34,7 @@ async function call(op, { method = 'GET', body, query } = {}) {
 
 export const studioApi = {
   health: () => call('health'),
-  wall: (period = 'week') => call('wall', { query: { period, uid: uid() } }),
+  wall: (period = 'week', page = 0) => call('wall', { query: { period, page: page || undefined, uid: uid() } }),
   poster: (id) => call('poster', { query: { id, uid: uid() } }),
   doc: (id) => call('doc', { query: { id } }),
   publish: (payload) => call('publish', { method: 'POST', body: payload }),

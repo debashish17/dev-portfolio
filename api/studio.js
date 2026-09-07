@@ -1,7 +1,7 @@
 // /api/studio/<op> — the Studio's one function: publish, screen, likes, the wall.
 //
 //   GET  health            what is connected (redis, blob, screen)
-//   GET  wall?period=      week | all | latest | mine → THE TEN + contenders
+//   GET  wall?period=      week | all | archive (&page=) | latest | mine → THE TEN + contenders
 //   GET  poster?id=        one poster + the caller's like state + rank
 //   GET  doc?id=           layer JSON, for REMIX
 //   GET  png?id=&kind=     poster/card bytes when no Blob store is connected
@@ -34,6 +34,7 @@ const PNG_MAX = 560_000;    // data URL chars — a 480×640 four-ink PNG with g
 const CARD_MAX = 760_000;
 const ORIG_MAX = 260_000;
 const LATEST_KEEP = 60;
+const ARCHIVE_PAGE = 24;
 const HIDE_AT_REPORTS = 2;
 
 const ERR = {
@@ -74,6 +75,7 @@ const K = {
   week: (w) => `studio:wall:${w}`,
   all: 'studio:all',
   latest: 'studio:latest',
+  archive: 'studio:archive',   // every live poster, scored by publish time
   held: 'studio:held',
   mine: (uid) => `studio:mine:${uid}`,
   likes: (id) => `studio:likes:${id}`,
@@ -150,17 +152,24 @@ async function enrich(ids, uid) {
 async function wall(request, url, uid) {
   const blocked = await gate(request, { scope: 'read', perMinute: READ_PER_MIN });
   if (blocked) return blocked;
-  const period = ['week', 'all', 'latest', 'mine'].includes(url.searchParams.get('period')) ? url.searchParams.get('period') : 'week';
+  const period = ['week', 'all', 'archive', 'latest', 'mine'].includes(url.searchParams.get('period')) ? url.searchParams.get('period') : 'week';
+  const page = Math.max(0, Math.min(500, Number(url.searchParams.get('page')) || 0));
   const week = isoWeek();
   let topIds = [];
   if (period === 'week') topIds = await r1('ZREVRANGE', K.week(week), 0, 9);
   else if (period === 'all') topIds = await r1('ZREVRANGE', K.all, 0, 9);
+  else if (period === 'archive') topIds = await r1('ZREVRANGE', K.archive, page * ARCHIVE_PAGE, page * ARCHIVE_PAGE + ARCHIVE_PAGE - 1);
   else if (period === 'latest') topIds = await r1('LRANGE', K.latest, 0, 23);
   else topIds = await r1('LRANGE', K.mine(uid), 0, 23);
-  const [latestIds, posters, likes] = await redis(['LRANGE', K.latest, 0, 5], ['GET', K.posters(week)], ['GET', K.wlikes(week)]);
+  const [latestIds, posters, likes, total] = await redis(['LRANGE', K.latest, 0, 5], ['GET', K.posters(week)], ['GET', K.wlikes(week)], ['ZCARD', K.archive]);
   const top = (await enrich(topIds || [], uid)).filter((p) => p.status === 'live' || period === 'mine');
   const latest = period === 'week' ? (await enrich(latestIds || [], uid)).filter((p) => p.status === 'live' || p.status === 'held') : [];
-  return json(200, { configured: true, period, week, resetsAt: nextMonday(), top, latest, counts: { posters: Number(posters) || 0, likes: Number(likes) || 0 } });
+  const all = Number(total) || 0;
+  return json(200, {
+    configured: true, period, week, resetsAt: nextMonday(), top, latest,
+    page, hasMore: period === 'archive' && (page + 1) * ARCHIVE_PAGE < all,
+    counts: { posters: Number(posters) || 0, likes: Number(likes) || 0, all },
+  });
 }
 
 async function poster(request, url, uid) {
@@ -259,7 +268,7 @@ async function publish(request, uid) {
 }
 
 const liveCmds = (id, week) => [
-  ['ZADD', K.week(week), 'NX', 0, id], ['ZADD', K.all, 'NX', 0, id],
+  ['ZADD', K.week(week), 'NX', 0, id], ['ZADD', K.all, 'NX', 0, id], ['ZADD', K.archive, 'NX', Date.now(), id],
   ['LPUSH', K.latest, id], ['LTRIM', K.latest, 0, LATEST_KEEP - 1], ['INCR', K.posters(week)],
 ];
 
@@ -316,7 +325,7 @@ async function report(request, uid) {
   await r1('SADD', K.reports(id), `${uid}:${clientIp(request.headers)}`);
   rec.reports = Number(await r1('SCARD', K.reports(id)));
   let hidden = false;
-  if (rec.reports >= HIDE_AT_REPORTS) { rec.status = 'hidden'; hidden = true; await redis(['ZREM', K.week(rec.week), id], ['ZREM', K.all, id], ['LREM', K.latest, 0, id]); }
+  if (rec.reports >= HIDE_AT_REPORTS) { rec.status = 'hidden'; hidden = true; await redis(['ZREM', K.week(rec.week), id], ['ZREM', K.all, id], ['ZREM', K.archive, id], ['LREM', K.latest, 0, id]); }
   await setJson(K.rec(id), rec);
   return json(200, { id, reports: rec.reports, hidden });
 }
@@ -369,7 +378,7 @@ async function remove(request) {
   const rec = await getJson(K.rec(id));
   if (!rec) return json(404, { error: ERR.missing });
   rec.status = 'removed';
-  await redis(['SET', K.rec(id), JSON.stringify(rec)], ['ZREM', K.week(rec.week), id], ['ZREM', K.all, id], ['LREM', K.latest, 0, id], ['SREM', K.held, id], ['DEL', K.doc(id), K.bytes(id, 'png'), K.bytes(id, 'card')]);
+  await redis(['SET', K.rec(id), JSON.stringify(rec)], ['ZREM', K.week(rec.week), id], ['ZREM', K.all, id], ['ZREM', K.archive, id], ['LREM', K.latest, 0, id], ['SREM', K.held, id], ['DEL', K.doc(id), K.bytes(id, 'png'), K.bytes(id, 'card')]);
   await delBlobs([rec.png, rec.card, rec.docUrl].filter((u) => u && u.startsWith('http')));
   return json(200, { id, status: 'removed' });
 }
