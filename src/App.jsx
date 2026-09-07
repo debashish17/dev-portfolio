@@ -13,19 +13,30 @@ import AboutPage from './pages/page-about.jsx';
 import WorkPage from './pages/page-work.jsx';
 import AchievementsPage from './pages/page-achievements.jsx';
 import ContactPage from './pages/page-contact.jsx';
+import StudioPage from './pages/page-studio.jsx';
 
 // MAIN APP - router, navigation, page transitions
+
+// The router is state-based; only the Studio has real URLs (/studio, /p/:id)
+// because its posters are shared. Everything else stays at "/".
+const routeFromUrl = () => (/^\/(studio|p\/)/.test(window.location.pathname) ? 'studio' : 'home');
+const syncUrl = (next) => {
+  try {
+    if (next === 'studio') { if (!/^\/(studio|p\/)/.test(window.location.pathname)) window.history.replaceState(null, '', '/studio'); }
+    else if (window.location.pathname !== '/') window.history.replaceState(null, '', '/');
+  } catch { /* sandboxed */ }
+};
 
 function App() {
   useRenderCount('App');
   const [loading, setLoading] = useState(true);
-  const [route, setRoute] = useState('home');
+  const [route, setRoute] = useState(routeFromUrl);
   const [transitioning, setTransitioning] = useState(false);
   const [pendingRoute, setPendingRoute] = useState(null);
 
   useEffect(() => {
     initAnalytics();
-    trackPageView('home');
+    trackPageView(routeFromUrl());
   }, []);
 
   const go = useCallback((next) => {
@@ -35,6 +46,7 @@ function App() {
     setPendingRoute(next);
     setTimeout(() => {
       setRoute(next);
+      syncUrl(next);
       window.scrollTo(0, 0);
     }, 500);
     setTimeout(() => {
@@ -82,6 +94,7 @@ const ROUTES = [
   { id: 'work', no: '03', label: 'WORK' },
   { id: 'achievements', no: '04', label: 'HONOURS' },
   { id: 'contact', no: '05', label: 'TRANSMIT' },
+  { id: 'studio', no: '06', label: 'STUDIO' },
 ];
 
 function Nav({ route, go, loading }) {
@@ -189,6 +202,7 @@ function PageRenderer({ route }) {
     case 'work': return <WorkPage />;
     case 'achievements': return <AchievementsPage />;
     case 'contact': return <ContactPage />;
+    case 'studio': return <StudioPage />;
     default: return <HomePage />;
   }
 }

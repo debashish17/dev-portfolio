@@ -5,6 +5,11 @@
   "framework": null,
   "rewrites": [
     { "source": "/uploads/(.*)", "destination": "/uploads/$1" },
+    { "source": "/api/studio/(.*)", "destination": "/api/studio?op=$1" },
+    { "source": "/p/(.*)", "destination": "/api/p?id=$1" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/studio/rescreen", "schedule": "20 8 * * *" }
   ]
 }

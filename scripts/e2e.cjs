@@ -86,7 +86,7 @@ const assert = (c, msg) => { if (!c) throw new Error(msg); };
       await cdp.send('Page.navigate', { url });
       await waitLoader();
       const r = await js(`({ toggle: !!document.querySelector('.xr-toggle'), nav: document.querySelectorAll('.nav-item').length, chat: !!document.querySelector('.ddb-launcher') })`);
-      assert(r.toggle && r.nav === 5, 'nav/toggle missing');
+      assert(r.toggle && r.nav === 6, `nav/toggle missing (nav ${r.nav}, toggle ${r.toggle})`);
       return r;
     });
 

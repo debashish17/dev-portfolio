@@ -49,3 +49,6 @@ uploads/pasted-*
 
 .vercel
 .env*
+
+# Design reference images (Wikimedia downloads, not site assets)
+references/

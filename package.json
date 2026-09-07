@@ -8,10 +8,13 @@
     "start": "NODE_ENV=production bun src/index.ts",
     "build": "bun run build.ts",
     "bench:scroll": "node scripts/scroll-bench.cjs",
-    "e2e": "node scripts/e2e.cjs"
+    "e2e": "node scripts/e2e.cjs",
+    "e2e:studio": "node scripts/studio-e2e.cjs",
+    "mock:redis": "node scripts/mock-upstash.cjs 8790"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
+    "@vercel/blob": "^2.8.0",
     "bun-plugin-tailwind": "^0.1.2",
     "motion": "^12.42.2",
     "react": "^19",

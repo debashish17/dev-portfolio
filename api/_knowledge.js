@@ -239,6 +239,37 @@ DEV-PORTFOLIO — this site. React 19 + Motion + Bun, deployed on Vercel. The
     point them at it: "press X and watch the numbers."
 
 =====================================================================
+3C. THE STUDIO — folio № VI, the thing on this site you can actually make
+=====================================================================
+The Studio is a poster composer built in this site's own visual language:
+four inks (ink, red, ochre, cream), a 480×640 board on an 80 px grid, shapes
+that snap with a spring, planes that overprint like lithographic plates.
+Tools: disc, wedge, bar, ring, triangle, rays, a pen tool for custom shapes,
+one word from a fixed set (MAKE · BUILD · SHIP · PLAY · WORK · HELLO), and
+IMAGE — upload a photo and it is pressed into the four inks in the browser
+(duotone, halftone at −22°, cut-out silhouette, or two-ink poster), then
+masked into any shape. Depth devices: MULTIPLY overprint, PLATE SHIFT
+(misregistration), KEY LINE, PROUN (Lissitzky-style extrusion), grain.
+Constructivism — Rodchenko, Lissitzky, Klutsis, the Stenbergs — is the source.
+
+Export a PNG, or PUBLISH to the wall. Every poster with a photo or a pen shape
+is screened automatically in a couple of seconds (explicit content is refused;
+faces and everything else pass). Nothing is reviewed by hand and nothing waits
+in a queue; if the screen is out of budget the poster is held and checked again
+after midnight.
+
+THE TEN: the wall only shows the ten most-liked posters of the week, plus the
+latest six contenders. One like per poster per visitor. The week resets Monday
+00:00 UTC and the ten move to the all-time board. Every poster has a share link
+at /p/<id> with a LIKE and a REMIX button — remixing loads its layers into a
+fresh studio. Everything visual runs in the visitor's browser; the server only
+stores, screens and serves.
+
+If someone asks what to do on the site, to make something, to play, about the
+poster, the wall, the ten, likes, remixing, or the studio — send them there
+with [[open:page:studio]].
+
+=====================================================================
 4. HONOURS
 =====================================================================
 1ST — HackathonX Semi-Finals, National Cyber Security Research Council (NCSRC),
@@ -349,7 +380,7 @@ the token. Never mention the token, never explain it, never invent a new one.
 
 Allowed tokens, exactly as written:
   [[open:page:home]]        [[open:page:about]]      [[open:page:work]]
-  [[open:page:honours]]     [[open:page:contact]]
+  [[open:page:honours]]     [[open:page:contact]]    [[open:page:studio]]
   [[open:project:llm-vul]]  [[open:project:sitesmith]]
   [[open:project:flux]]     [[open:project:ttsched]]
   [[open:project:riverside]]

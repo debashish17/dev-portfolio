@@ -13,6 +13,7 @@ const ROUTE_PAGES = {
   work: { path: '/work', title: 'Work' },
   achievements: { path: '/achievements', title: 'Honours' },
   contact: { path: '/contact', title: 'Transmit' },
+  studio: { path: '/studio', title: 'Studio' },
 };
 
 const isLocalhost = () =>
@@ -34,6 +35,12 @@ export function initAnalytics() {
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
   document.head.appendChild(script);
+}
+
+// Named events (studio_publish, studio_like, …). No-op until GA is configured.
+export function track(name, params = {}) {
+  if (!initialized) return;
+  window.gtag('event', name, params);
 }
 
 export function trackPageView(routeId) {

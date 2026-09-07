@@ -12,6 +12,10 @@ import { seg, easeInOut } from '../components/primitives.jsx';
 // notches ~60 ms apart, but reaches 90 % in ~0.28 s and settles in ~0.6 s.
 export const SCROLL_SPRING = Object.freeze({ stiffness: 160, damping: 22, mass: 0.5, restDelta: 0.0005 });
 export const POINTER_SPRING = Object.freeze({ stiffness: 140, damping: 18, mass: 0.4 });
+// Studio grid snap. Deliberately under-damped (ζ≈0.73) so a dropped shape
+// overshoots its cell by a few px and comes back — the "click" of a snap you
+// can see. Settles in ~0.35 s.
+export const SNAP_SPRING = Object.freeze({ stiffness: 380, damping: 22, mass: 0.6 });
 
 // Transition zones on the 0–1 scroll progress. Everything between two zones is a
 // hold plateau where the camera is parked and nothing moves but the pointer.

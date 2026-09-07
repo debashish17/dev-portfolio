@@ -19,6 +19,7 @@ const PAGE_TOKENS = {
   work: 'work',
   honours: 'achievements',
   contact: 'contact',
+  studio: 'studio',
 };
 
 // Every project lives on the Work page.
