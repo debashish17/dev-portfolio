@@ -275,8 +275,12 @@ async function card(request, uid) {
   const img = typeof body.card === 'string' && body.card.length <= CARD_MAX ? decodeDataUrl(body.card, ['image/png']) : null;
   if (!img) return json(400, { error: ERR.png });
   const base = env('SITE_ORIGIN') || new URL(request.url).origin;
-  rec.card = await storeBytes(id, 'card', img, base);
+  // Versioned path: blobs are cached for a year at the edge, so re-attaching a
+  // card must produce a new URL rather than overwrite the old one.
+  const previous = rec.card;
+  rec.card = await storeBytes(id, `card-${Date.now().toString(36)}`, img, base);
   await setJson(K.rec(id), rec);
+  if (previous && previous.startsWith('http') && previous !== rec.card) await delBlobs([previous]);
   return json(200, { id, card: rec.card });
 }
 
