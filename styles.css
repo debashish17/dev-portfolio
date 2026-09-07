@@ -1122,7 +1122,7 @@ html, body {
 .xr.is-reduced .xr-sweep { display: none; }
 
 /* ============ STUDIO — folio № VI ============ */
-.st-page-inner { position: relative; z-index: 2; padding: 24px var(--pad-x) 104px; min-height: 100%; display: flex; flex-direction: column; gap: 18px; }
+.st-page-inner { position: relative; z-index: 2; padding: 24px var(--pad-x) 28px; min-height: 100%; display: flex; flex-direction: column; gap: 18px; }
 .st-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
 .st-head.is-slim { margin-bottom: -6px; justify-content: flex-end; }
 .st-head.is-slim > div:first-child { display: none; }
