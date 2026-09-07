@@ -141,29 +141,40 @@ async function handler(request) {
 }
 
 // ------------------------------------------------------------------ reads
+// Records + this visitor's like flags for a list of ids, in ONE pipeline.
 async function enrich(ids, uid) {
   const clean = ids.filter(Boolean);
   if (!clean.length) return [];
-  const recs = await mgetJson(clean.map(K.rec));
-  const liked = uid && uid !== 'anon' ? await redis(...clean.map((id) => ['SISMEMBER', K.likes(id), uid])) : clean.map(() => 0);
-  return recs.map((r, i) => (r ? { ...pub(r, uid), liked: Boolean(Number(liked[i])) } : null)).filter(Boolean);
+  const withLikes = uid && uid !== 'anon';
+  const out = await redis(['MGET', ...clean.map(K.rec)], ...(withLikes ? clean.map((id) => ['SISMEMBER', K.likes(id), uid]) : []));
+  const recs = (out[0] || []).map((s) => { if (!s) return null; try { return JSON.parse(s); } catch { return null; } });
+  return recs.map((r, i) => (r ? { ...pub(r, uid), liked: withLikes ? Boolean(Number(out[1 + i])) : false } : null)).filter(Boolean);
 }
 
+// Two Redis round trips: [rate-limit + ids + counts] then [records + likes].
+// The wall is read on every tab switch, so latency here is what visitors feel.
 async function wall(request, url, uid) {
-  const blocked = await gate(request, { scope: 'read', perMinute: READ_PER_MIN });
-  if (blocked) return blocked;
+  if (!originAllowed(request.headers.get('origin'))) return json(403, { error: ERR.origin });
   const period = ['week', 'all', 'archive', 'latest', 'mine'].includes(url.searchParams.get('period')) ? url.searchParams.get('period') : 'week';
   const page = Math.max(0, Math.min(500, Number(url.searchParams.get('page')) || 0));
   const week = isoWeek();
-  let topIds = [];
-  if (period === 'week') topIds = await r1('ZREVRANGE', K.week(week), 0, 9);
-  else if (period === 'all') topIds = await r1('ZREVRANGE', K.all, 0, 9);
-  else if (period === 'archive') topIds = await r1('ZREVRANGE', K.archive, page * ARCHIVE_PAGE, page * ARCHIVE_PAGE + ARCHIVE_PAGE - 1);
-  else if (period === 'latest') topIds = await r1('LRANGE', K.latest, 0, 23);
-  else topIds = await r1('LRANGE', K.mine(uid), 0, 23);
-  const [latestIds, posters, likes, total] = await redis(['LRANGE', K.latest, 0, 5], ['GET', K.posters(week)], ['GET', K.wlikes(week)], ['ZCARD', K.archive]);
-  const top = (await enrich(topIds || [], uid)).filter((p) => p.status === 'live' || period === 'mine');
-  const latest = period === 'week' ? (await enrich(latestIds || [], uid)).filter((p) => p.status === 'live' || p.status === 'held') : [];
+  const rlKey = `rl:studio-read:${clientIp(request.headers)}:${Math.floor(Date.now() / 60000)}`;
+  const listCmd = period === 'week' ? ['ZREVRANGE', K.week(week), 0, 9]
+    : period === 'all' ? ['ZREVRANGE', K.all, 0, 9]
+    : period === 'archive' ? ['ZREVRANGE', K.archive, page * ARCHIVE_PAGE, page * ARCHIVE_PAGE + ARCHIVE_PAGE - 1]
+    : period === 'latest' ? ['LRANGE', K.latest, 0, 23]
+    : ['LRANGE', K.mine(uid), 0, 23];
+  const [hits, , topIds, latestIds, posters, likes, total] = await redis(
+    ['INCR', rlKey], ['EXPIRE', rlKey, 120], listCmd,
+    ['LRANGE', K.latest, 0, 5], ['GET', K.posters(week)], ['GET', K.wlikes(week)], ['ZCARD', K.archive],
+  );
+  if (Number(hits) > READ_PER_MIN) return json(429, { error: ERR.rate });
+  const ids = topIds || [];
+  const latestList = period === 'week' ? (latestIds || []).filter((id) => !ids.includes(id)) : [];
+  const rows = await enrich([...ids, ...latestList], uid);
+  const byId = new Map(rows.map((p) => [p.id, p]));
+  const top = ids.map((id) => byId.get(id)).filter((p) => p && (p.status === 'live' || period === 'mine'));
+  const latest = latestList.map((id) => byId.get(id)).filter((p) => p && (p.status === 'live' || p.status === 'held'));
   const all = Number(total) || 0;
   return json(200, {
     configured: true, period, week, resetsAt: nextMonday(), top, latest,

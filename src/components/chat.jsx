@@ -75,14 +75,21 @@ function Rich({ text }) {
 }
 
 const GREETING =
-  "I'm D.D.B — Dibya's side of this site that actually talks back. Ask me about the work, the stack, or what I'm building at RBP Finivis.";
+  "I'm D.D.B — Dibya's side of this site that actually talks back. Ask me about the work, the stack, or what I'm building at RBP Finivis. Or make something: there is a poster studio here.";
 
 const CHIPS = [
   'What have you built?',
+  'Can I make something here?',
   "What are you working on now?",
-  'Tell me about the hackathon win',
   'Are you open to work?',
 ];
+
+// One nudge towards the Studio, once per browser, and only after the visitor
+// has shown some curiosity (a second section, or a while on the first). Never
+// while they are already there, never twice, gone on its own after a moment.
+const NUDGE_KEY = 'ddb.nudge.studio.v1';
+const NUDGE_TEXT = "Read enough? There is a Studio on this site — press a photo into four inks, compose a poster, hang it on the wall. Takes two minutes.";
+const NUDGE_AFTER_MS = 45000;
 
 const TRACE = ['UNDERSTANDING', 'SEARCHING KNOWLEDGE', 'COMPOSING'];
 
@@ -157,17 +164,52 @@ function burstConfetti() {
 }
 
 export default function Chat() {
-  const { go } = useRoute();
+  const { route, go } = useRoute();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([{ role: 'model', text: GREETING }]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const [trace, setTrace] = useState(0);
   const [unread, setUnread] = useState(false);
+  const [nudge, setNudge] = useState(false);
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const streamingRef = useRef(false);
+  const nudgedRef = useRef(false);
+  const firstRouteRef = useRef(route);
+
+  const openStudio = useCallback(() => {
+    setNudge(false);
+    try { localStorage.setItem('studio.visited', '1'); } catch { /* private mode */ }
+    go('studio');
+  }, [go]);
+
+  // The nudge: fires once when the visitor moves to a second section, or after
+  // 45 s on the first — whichever comes first — unless they have been to the
+  // studio (now or before) or have been nudged before.
+  useEffect(() => {
+    let done = false;
+    try { done = localStorage.getItem(NUDGE_KEY) === '1' || localStorage.getItem('studio.visited') === '1'; } catch { done = true; }
+    if (done || nudgedRef.current || route === 'studio') return undefined;
+    const fire = () => {
+      if (nudgedRef.current) return;
+      nudgedRef.current = true;
+      try { localStorage.setItem(NUDGE_KEY, '1'); } catch { /* private mode */ }
+      setMsgs((prev) => [...prev, { role: 'model', text: NUDGE_TEXT, action: { label: 'OPEN THE STUDIO →', run: 'studio' } }]);
+      if (!open) { setUnread(true); setNudge(true); }
+    };
+    if (route !== firstRouteRef.current) { fire(); return undefined; }
+    const t = setTimeout(fire, NUDGE_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [route, open]);
+
+  // The floating nudge card leaves on its own; the message stays in the log.
+  useEffect(() => {
+    if (!nudge) return undefined;
+    const t = setTimeout(() => setNudge(false), 9000);
+    return () => clearTimeout(t);
+  }, [nudge]);
 
   // Auto-scroll on new content.
   useEffect(() => {
@@ -283,6 +325,15 @@ export default function Chat() {
         {unread && !open && <span className="ddb-launcher-dot" aria-hidden="true" />}
       </button>
 
+      {nudge && !open && (
+        <div className="ddb-nudge" role="status">
+          <button type="button" className="ddb-nudge-x" onClick={() => setNudge(false)} aria-label="Dismiss">×</button>
+          <span className="mono ddb-tag">D.D.B</span>
+          <p>{NUDGE_TEXT}</p>
+          <button type="button" className="ddb-nudge-go mono clickable" onClick={openStudio} data-magnet>OPEN THE STUDIO →</button>
+        </div>
+      )}
+
       <div className={`ddb-panel ${open ? 'open' : ''}`} role="dialog" aria-label="Chat with D.D.B">
         <header className="ddb-head">
           <div className="ddb-head-id">
@@ -303,6 +354,7 @@ export default function Chat() {
                   {m.role === 'model' && <span className="mono ddb-tag">D.D.B</span>}
                   <Rich text={displayText(m.text, m.streaming) || (m.streaming ? '' : m.text)} />
                   {m.streaming && <span className="ddb-caret" aria-hidden="true" />}
+                  {m.action && <button type="button" className="ddb-action mono clickable" onClick={() => { setOpen(false); openStudio(); }}>{m.action.label}</button>}
                 </div>
               )}
             </div>

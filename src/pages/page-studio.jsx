@@ -3,7 +3,7 @@ import { useXRayRegister } from '../components/xray/hooks.js';
 import { useIsMobile } from '../components/primitives.jsx';
 import { SNAP_SPRING } from '../motion/timeline.js';
 import Composer from '../studio/Composer.jsx';
-import Wall from '../studio/Wall.jsx';
+import Wall, { prefetchWall } from '../studio/Wall.jsx';
 import PosterView from '../studio/PosterView.jsx';
 import { studioApi } from '../studio/api-client.js';
 import { validateDoc } from '../studio/doc.js';
@@ -42,6 +42,14 @@ export default function StudioPage() {
     try { window.history.replaceState(null, '', urlFor(view)); } catch { /* sandboxed */ }
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [view]);
+
+  // The wall's default tab is fetched the moment the studio mounts, so opening
+  // THE WALL is instant. The visit is remembered so the bot never nudges
+  // someone who has already been here.
+  useEffect(() => {
+    prefetchWall(['week']);
+    try { localStorage.setItem('studio.visited', '1'); } catch { /* private mode */ }
+  }, []);
 
   const openPoster = useCallback((id) => setView({ kind: 'poster', id }), []);
   const openWall = useCallback(() => setView({ kind: 'wall' }), []);

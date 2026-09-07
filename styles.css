@@ -1121,6 +1121,16 @@ html, body {
 }
 .xr.is-reduced .xr-sweep { display: none; }
 
+/* ---- chat nudge (once, dismissable) and in-bubble actions ---- */
+.ddb-nudge { position: fixed; right: clamp(16px, 3vw, 32px); bottom: calc(clamp(16px, 3vw, 32px) + 74px); z-index: 299; width: min(260px, calc(100vw - 32px)); padding: 12px 14px 12px; background: var(--cream); border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--red); animation: ddbNudgeIn .32s cubic-bezier(.2,.8,.2,1) both; }
+.ddb-nudge p { margin: 4px 0 10px; font-size: 12px; line-height: 1.45; }
+.ddb-nudge-x { position: absolute; top: 4px; right: 6px; border: 0; background: none; font-size: 16px; line-height: 1; cursor: pointer; color: var(--ink); opacity: .6; }
+.ddb-nudge-x:hover { opacity: 1; }
+.ddb-nudge-go, .ddb-action { display: inline-block; padding: 7px 12px; background: var(--ink); color: var(--cream); border: 2px solid var(--ink); font-size: 9.5px; font-weight: 700; letter-spacing: .12em; cursor: pointer; box-shadow: 3px 3px 0 var(--red); }
+.ddb-action { margin-top: 8px; }
+@keyframes ddbNudgeIn { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { .ddb-nudge { animation: none; } }
+
 /* ============ STUDIO — folio № VI ============ */
 .st-page-inner { position: relative; z-index: 2; padding: 24px var(--pad-x) 28px; min-height: 100%; display: flex; flex-direction: column; gap: 18px; }
 .st-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }

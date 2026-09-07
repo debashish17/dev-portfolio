@@ -14,6 +14,17 @@ const PERIODS = [
 ];
 const RANKED = new Set(['week', 'all']);
 
+// Per-session cache of the first page of every tab, so switching tabs is
+// instant (the fetch still runs and refreshes the numbers quietly).
+const wallCache = new Map();
+export function prefetchWall(periods = PERIODS.map((p) => p.id)) {
+  for (const p of periods) {
+    if (wallCache.has(p) || wallCache.has(`${p}:pending`)) continue;
+    wallCache.set(`${p}:pending`, true);
+    studioApi.wall(p, 0).then((d) => wallCache.set(p, d)).catch(() => {}).finally(() => wallCache.delete(`${p}:pending`));
+  }
+}
+
 function timeLeft(iso) {
   if (!iso) return '';
   const ms = new Date(iso) - Date.now();
@@ -30,13 +41,16 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
   const [more, setMore] = useState(false);
 
   const load = useCallback(async (p = period) => {
-    setState('loading');
+    const cached = wallCache.get(p);
+    if (cached) { setData(cached); setState(cached.configured ? 'ok' : 'off'); }
+    else setState('loading');
     try {
       const d = await studioApi.wall(p, 0);
+      wallCache.set(p, d);
       setData(d);
       setState(d.configured ? 'ok' : 'off');
     } catch (e) {
-      setState(e.status === 404 || e.status === 503 ? 'off' : 'error');
+      if (!cached) setState(e.status === 404 || e.status === 503 ? 'off' : 'error');
     }
   }, [period]);
 
@@ -51,6 +65,9 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
   };
 
   useEffect(() => { load(period); }, [period, load]);
+  useEffect(() => { prefetchWall(); }, []);
+  // keep the cache in step with optimistic like updates
+  useEffect(() => { if (data && state === 'ok' && (data.page || 0) === 0) wallCache.set(period, data); }, [data, state, period]);
 
   const like = async (p) => {
     if (busy) return;
