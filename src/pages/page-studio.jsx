@@ -95,7 +95,7 @@ export default function StudioPage() {
   // board scales to the space left, and the two side columns scroll inside
   // themselves only on short displays. The wall and poster views scroll.
   return (
-    <div ref={scrollRef} className={`paper-bg st-page ${composing ? 'is-compose' : ''}`} style={{ position: 'absolute', inset: 0, overflowX: 'hidden', overflowY: composing && !isMobile ? 'hidden' : 'auto' }}>
+    <div ref={scrollRef} className={`paper-bg st-page ${composing ? 'is-compose' : ''}`} style={{ position: 'absolute', inset: 0, overflowX: 'hidden', overflowY: composing ? 'hidden' : 'auto' }}>
       <div className="grid-overlay" />
       <div className={`st-page-inner ${composing ? 'is-compose' : ''}`}>
         <header className={`st-head ${tab === 'compose' || tab === 'loading' ? '' : 'is-slim'}`}>

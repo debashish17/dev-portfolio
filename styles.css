@@ -1149,6 +1149,12 @@ html, body {
 .st-page-inner.is-compose .st-composer { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
 .st-page-inner.is-compose .st-frame { height: 100%; min-height: 0; align-items: center; }
 .st-page-inner.is-compose .st-rail, .st-page-inner.is-compose .st-inspector { min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 8px 8px 2px; margin: -2px -8px -8px -2px; scrollbar-width: thin; }
+/* What ctrl-minus to 90 % does, built in: header, rail, inspector and footer render at 0.9 —
+   the board is left alone so its canvas and pointer maths stay 1:1. Columns shrink to match. */
+.st-page-inner.is-compose .st-head, .st-page-inner.is-compose .st-foot { zoom: 0.9; }
+/* --st-zoom starts at 0.9 and is lowered by the composer only as far as its columns need to fit */
+.st-page-inner.is-compose .st-rail, .st-page-inner.is-compose .st-inspector { zoom: var(--st-zoom, 0.9); }
+.st-page-inner.is-compose .st-composer { grid-template-columns: calc(208px * var(--st-zoom, 0.9)) minmax(0, 1fr) calc(232px * var(--st-zoom, 0.9)); }
 .st-page-inner.is-compose .st-title { font-size: clamp(28px, 3vw, 36px); margin-top: 6px; }
 .st-page-inner.is-compose .st-sub { margin-top: 6px; }
 .st-page-inner.is-compose .st-foot { padding-top: 0; }
@@ -1281,16 +1287,52 @@ html, body {
   .st-composer { grid-template-columns: 180px minmax(0, 1fr) 216px; gap: 20px; padding-right: 48px; }
   .st-ten { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+/* touch layout <= 900px: board fills the space, tools in a floating dock, inspector as a sheet */
+.st-composer.is-compact { display: flex; flex-direction: column; flex: 1; min-height: 0; position: relative; padding: 0; gap: 0; }
+.st-composer.is-compact .st-frame { flex: 1; min-height: 0; height: auto; width: 100%; align-items: flex-start; justify-content: center; padding: 6px 0 78px; }
+.st-composer.is-compact .st-board { margin: 0 8px 8px 0; box-shadow: 8px 8px 0 var(--ink); }
+.st-composer.is-compact .st-hint { bottom: 84px; white-space: normal; width: 90%; text-align: center; }
+.st-dock { position: absolute; left: 0; right: 74px; bottom: 8px; z-index: 5; display: flex; align-items: center; gap: 6px; padding: 6px; background: var(--cream); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.st-dock-tools { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.st-dock-tools::-webkit-scrollbar { display: none; }
+.st-dock-tile { flex: none; width: 54px; height: 48px; font-size: 6.5px; letter-spacing: .1em; gap: 3px; }
+.st-dock-tile .st-g-disc { width: 18px; height: 18px; } .st-dock-tile .st-g-wedge { width: 26px; height: 13px; } .st-dock-tile .st-g-bar { width: 30px; height: 5px; }
+.st-dock-tile .st-g-ring { width: 18px; height: 18px; border-width: 4px; } .st-dock-tile .st-g-tri { width: 18px; height: 16px; } .st-dock-tile .st-g-rays { width: 20px; height: 20px; }
+.st-dock-tile .display { font-size: 16px; }
+.st-dock-btn { flex: none; width: 42px; height: 48px; display: grid; place-items: center; border: 2px solid var(--ink); background: var(--cream); color: var(--ink); cursor: pointer; padding: 0; }
+.st-dock-btn.is-on { background: var(--ink); color: var(--cream); }
+.st-dock-pub { flex: none; height: 48px; padding: 0 12px; background: var(--ink); color: var(--cream); border: 2px solid var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700; letter-spacing: .12em; box-shadow: 3px 3px 0 var(--red); cursor: pointer; }
+.st-dock-pub:disabled { opacity: .6; }
+.st-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; max-height: 66%; overflow-y: auto; background: var(--cream); border: 2px solid var(--ink); border-bottom: 0; box-shadow: 0 -5px 0 var(--red); padding: 10px 12px 78px; animation: stSheet .22s cubic-bezier(.2,.8,.2,1) both; }
+.st-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.st-sheet .st-card { border: 0; box-shadow: none; padding: 0; background: transparent; }
+.st-sheet .st-btn { justify-content: center; }
+@keyframes stSheet { from { transform: translateY(28px); opacity: 0; } }
+/* phones: the board is width-bound and leaves a free band, so the dock takes two rows —
+   all nine tools visible with no sideways scroll, actions underneath */
+@media (max-width: 480px) {
+  .st-dock { flex-wrap: wrap; right: 0; padding-right: 76px; }
+  .st-dock-tools { flex: 1 1 100%; flex-wrap: wrap; overflow: visible; }
+  .st-dock-tile { width: calc((100% - 24px) / 5); }
+  .st-dock-btn { width: 48px; }
+  .st-dock-pub { flex: 1; }
+  .st-composer.is-compact .st-frame { padding-bottom: 136px; }
+  .st-composer.is-compact .st-hint { bottom: 142px; }
+}
+
 @media (max-width: 900px) {
+  .st-page-inner.is-compose { padding: 8px 12px 0; gap: 6px; }
+  .st-page-inner.is-compose .st-head { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+  .st-page-inner.is-compose .st-title { font-size: 22px; margin-top: 2px; }
+  .st-page-inner.is-compose .st-sub, .st-page-inner.is-compose .st-foot, .st-page-inner.is-compose .st-head .label { display: none; }
+  .st-page-inner.is-compose .st-head > div:first-child { min-width: 0; }
   .st-composer { grid-template-columns: minmax(0, 1fr); gap: 22px; padding-right: 0; }
   .st-frame { order: 1; height: auto; min-height: 0; width: 100%; aspect-ratio: 3 / 4; max-height: 72vh; }
   .st-rail { order: 2; }
   .st-inspector { order: 3; }
   .st-tiles { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
   .st-tile { height: 56px; }
-  .st-page-inner.is-compose { height: auto; overflow: visible; }
-  .st-page-inner.is-compose .st-rail, .st-page-inner.is-compose .st-inspector { overflow: visible; margin: 0; padding: 0; }
-  .st-page-inner.is-compose .st-frame { height: auto; }
+  .st-page-inner.is-compose .st-head, .st-page-inner.is-compose .st-foot { zoom: 1; }
   .st-ten { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 20px; }
   .st-poster-view { grid-template-columns: 1fr; gap: 28px; }
   .st-wall-head, .st-head { flex-direction: column; align-items: flex-start; }

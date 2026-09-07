@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { animate } from 'motion/react';
 import { SNAP_SPRING } from '../motion/timeline.js';
 import { useIsMobile } from '../components/primitives.jsx';
@@ -37,6 +37,20 @@ const TYPE_TITLES = { disc: 'DISC', wedge: 'WEDGE', bar: 'BAR', ring: 'RING', tr
 
 const nearestRot = (deg) => ROT_SNAPS.reduce((a, b) => (Math.abs(b - deg) < Math.abs(a - deg) ? b : a));
 
+// <= 900px: phones and tablets get the touch layout - board full width, a
+// floating tool dock, the inspector as a slide-up sheet.
+function useCompact() {
+  const q = '(max-width: 900px)';
+  const [compact, setCompact] = useState(() => window.matchMedia(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia(q);
+    const on = () => setCompact(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return compact;
+}
+
 function TileGlyph({ type }) {
   switch (type) {
     case 'disc': return <i className="st-g st-g-disc" />;
@@ -58,6 +72,8 @@ function TileGlyph({ type }) {
 
 export default function Composer({ initialDoc, remixOf, onPublished, onOpenWall }) {
   const isMobile = useIsMobile();
+  const compact = useCompact();
+  const [moreOpen, setMoreOpen] = useState(false);
   const [doc, setDocState] = useState(() => initialDoc || shuffle(emptyDoc(), dailySeed()));
   const [selectedId, setSelectedId] = useState(null);
   const [tool, setTool] = useState('select');
@@ -71,6 +87,9 @@ export default function Composer({ initialDoc, remixOf, onPublished, onOpenWall 
   const canvasRef = useRef(null);
   const boardRef = useRef(null);
   const frameRef = useRef(null);
+  const rootRef = useRef(null);
+  const railRef = useRef(null);
+  const inspRef = useRef(null);
   const selRef = useRef(null);
   const fileRef = useRef(null);
   const scaleRef = useRef(1);
@@ -140,6 +159,35 @@ export default function Composer({ initialDoc, remixOf, onPublished, onOpenWall 
   }, [doc, redraw]);
 
   useEffect(() => { placeSelection(); }, [selectedId, doc]);
+
+  // One screen, no scrollbars: the side columns render at --st-zoom, which
+  // starts at 0.9 (what ctrl-minus to 90 % looked like) and is lowered only as
+  // far as the taller column needs to fit the row. scrollHeight/clientHeight
+  // share a coordinate space whatever the zoom, so the ratio is exact; steps
+  // of 0.005, floored, so a fraction of a pixel never leaves a scrollbar.
+  const fitColumns = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (compact) { root.style.removeProperty('--st-zoom'); return; }
+    const z = parseFloat(root.style.getPropertyValue('--st-zoom')) || 0.9;
+    let next = 0.9;
+    for (const col of [railRef.current, inspRef.current]) {
+      if (!col) continue;
+      const sh = col.scrollHeight, ch = col.clientHeight;
+      if (sh > 0 && ch > 0) next = Math.min(next, z * (ch / sh));
+    }
+    next = Math.max(0.6, Math.floor(next * 200) / 200);
+    if (Math.abs(next - z) > 0.004) root.style.setProperty('--st-zoom', String(next));
+  }, [compact]);
+  useLayoutEffect(fitColumns);
+  useEffect(() => {
+    const host = frameRef.current;
+    if (!host) return;
+    const ro = new ResizeObserver(() => fitColumns());
+    ro.observe(host);
+    for (const col of [railRef.current, inspRef.current]) if (col) ro.observe(col);
+    return () => ro.disconnect();
+  }, [fitColumns]);
 
   // ---------------------------------------------------------------- state ops
   const commit = useCallback((next, { record = true } = {}) => {
@@ -440,112 +488,179 @@ export default function Composer({ initialDoc, remixOf, onPublished, onOpenWall 
   const penPath = penPts.length ? penPts.map(([x, y], i) => `${i ? 'L' : 'M'}${x * S},${y * S}`).join(' ') : '';
   const photoCount = doc.layers.filter((l) => l.type === 'image').length;
 
+  const toolButton = (t, cls = 'st-tile') => (
+    <button key={t.type} type="button" className={`${cls} clickable ${tool === 'pen' && t.type === 'pen' ? 'is-on' : ''} ${t.type === 'image' ? 'is-ink' : ''}`} onClick={() => { addLayer(t.type); setMoreOpen(false); }} data-magnet disabled={imgBusy && t.type === 'image'} title={t.type === 'pen' ? 'Click points on the board · Enter or click the first point to close' : undefined}>
+      <TileGlyph type={t.type} />
+      <span>{imgBusy && t.type === 'image' ? 'PRESSING…' : t.label}</span>
+    </button>
+  );
+
+  const paperRow = (
+    <div className="st-row">
+      {PAPER_CHOICES.map((p) => (
+        <button key={p} type="button" className={`st-swatch ${doc.paper === p ? 'is-on' : ''}`} style={{ background: INKS[p] }} onClick={() => commit({ ...docRef.current, paper: p })} aria-label={`paper ${p}`} />
+      ))}
+      <button type="button" className={`st-chip ${doc.grain ? 'is-on' : ''}`} onClick={() => commit({ ...docRef.current, grain: !docRef.current.grain })}>GRAIN</button>
+    </div>
+  );
+
+  const shuffleButton = (
+    <button type="button" className="st-btn st-btn-ink clickable" onClick={doShuffle} data-magnet>
+      <span>SHUFFLE</span>
+      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h3l6 8h3M2 12h3l2-2.7M11 4h3l-2 2.7" fill="none" stroke="currentColor" strokeWidth="1.5" /></svg>
+    </button>
+  );
+  const snapButton = (
+    <button type="button" className="st-btn clickable" onClick={() => setSnap((s) => !s)} aria-pressed={snap}>
+      <span>SNAP · {GRID}</span><span className="st-dotlabel"><i className={snap ? 'is-on' : ''} />{snap ? 'ON' : 'OFF'}</span>
+    </button>
+  );
+  const historyRow = (
+    <div className="st-row st-row-tight">
+      <button type="button" className="st-chip" onClick={undo} disabled={!history.current.past.length}>UNDO</button>
+      <button type="button" className="st-chip" onClick={redo} disabled={!history.current.future.length}>REDO</button>
+      <button type="button" className="st-chip" onClick={clearBoard}>CLEAR</button>
+    </div>
+  );
+
+  const boardSection = (
+    <section className="st-frame" ref={frameRef}>
+      <div
+        ref={boardRef}
+        className={`st-board ${snap ? 'show-grid' : ''} ${tool === 'pen' ? 'is-pen' : ''}`}
+        onPointerDown={onBoardDown}
+        onPointerMove={onBoardMove}
+        onPointerUp={onBoardUp}
+        onPointerCancel={onBoardUp}
+        data-xray="STUDIO · BOARD"
+      >
+        <canvas ref={canvasRef} className="st-canvas" />
+        {tool === 'pen' && (
+          <svg className="st-penlayer" aria-hidden="true">
+            {penPath && <path d={penPath} fill="rgba(214,40,40,0.15)" stroke="var(--red)" strokeWidth="1.5" strokeDasharray="4 3" />}
+            {penPts.map(([x, y], i) => <circle key={i} cx={x * S} cy={y * S} r={i === 0 ? 6 : 3.5} fill={i === 0 ? 'var(--cream)' : 'var(--red)'} stroke="var(--ink)" strokeWidth="1.5" />)}
+          </svg>
+        )}
+        <div ref={selRef} data-id={selectedId || ''} className="st-sel" style={{ display: selected ? 'block' : 'none' }} onPointerDown={(e) => { if (selected) { const { bx, by } = toBoard(e); e.stopPropagation(); startDrag(e, { id: selected.id, mode: 'move', bx, by, orig: { ...selected } }); } }}>
+          {['nw', 'ne', 'sw', 'se'].map((h) => <i key={h} className={`st-handle st-h-${h}`} onPointerDown={(e) => onHandleDown(e, h)} />)}
+          <i className="st-handle st-h-rot" onPointerDown={(e) => onHandleDown(e, 'rotate')} title="rotate" />
+          {selected && <span className="st-sel-tag mono">{TYPE_TITLES[selected.type]} · x {Math.round(selected.x)} · y {Math.round(selected.y)}{selected.rot ? ` · ${selected.rot}°` : ''}</span>}
+        </div>
+        <div className="st-board-cap mono">{doc.layers.length} LAYERS · {photoCount} PHOTO{photoCount === 1 ? '' : 'S'} · SEED {doc.seed}</div>
+      </div>
+      {tool === 'pen' && <div className="st-hint mono">{compact ? 'PEN · TAP POINTS · TAP THE FIRST POINT TO CLOSE' : 'PEN · CLICK POINTS · CLICK THE FIRST POINT OR PRESS ENTER TO CLOSE · ESC CANCELS'}</div>}
+      {notice && <div className="st-notice mono" role="status" onAnimationEnd={() => setNotice(null)}>{notice}</div>}
+    </section>
+  );
+
+  const inspectorBody = selected ? (
+    <Inspector l={selected} index={doc.layers.indexOf(selected)} total={doc.layers.length}
+      update={(patch) => updateLayer(selected.id, patch)}
+      rescreen={(patch) => rescreen(selected.id, patch)}
+      remove={() => removeLayer(selected.id)}
+      duplicate={() => duplicateLayer(selected.id)}
+      reorder={(d) => reorder(selected.id, d)}
+      canRescreen={prepRef.current.has(selected.id)} />
+  ) : (
+    <div className="st-card st-card-empty">
+      <div className="display" style={{ fontSize: 18 }}>NOTHING SELECTED</div>
+      <p>Click a shape on the board to edit it. Drag to move — it snaps to the grid with a spring. Corners resize, the top handle rotates.</p>
+      <p className="mono st-keys">DEL · CTRL+Z · CTRL+D · [ ] · ARROWS</p>
+    </div>
+  );
+
+  const keepBlock = (
+    <div className="st-stack st-result" data-xray="STUDIO · PUBLISH">
+      {publish.stage === 'idle' || publish.stage === 'error' ? (
+        <>
+          <button type="button" className="st-btn clickable" onClick={exportPng} data-magnet>EXPORT PNG</button>
+          <button type="button" className="st-btn st-btn-ink clickable" onClick={doPublish} data-magnet>PUBLISH →</button>
+          {publish.stage === 'error' && <p className="st-err mono">{publish.error}</p>}
+        </>
+      ) : publish.stage === 'done' ? (
+        <PublishResult r={publish} onOpenWall={onOpenWall} onAgain={() => setPublish({ stage: 'idle' })} />
+      ) : (
+        <div className="st-progress mono">
+          <i className="st-blink" />
+          {publish.stage === 'rendering' ? 'PRINTING…' : publish.screened ? 'SCREENING THE PHOTO…' : 'HANGING IT…'}
+        </div>
+      )}
+    </div>
+  );
+
+  // ---------------------------------------------------------- touch layout
+  if (compact) {
+    const publishing = publish.stage !== 'idle';
+    const sheet = publishing ? 'publish' : moreOpen ? 'more' : selected ? 'layer' : null;
+    return (
+      <div ref={rootRef} className="st-composer is-compact">
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
+        {boardSection}
+
+        <div className="st-dock" role="toolbar" aria-label="Tools">
+          <div className="st-dock-tools">{TOOL_TILES.map((t) => toolButton(t, 'st-tile st-dock-tile'))}</div>
+          <button type="button" className="st-dock-btn clickable" onClick={doShuffle} aria-label="Shuffle" title="Shuffle">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h3l6 8h3M2 12h3l2-2.7M11 4h3l-2 2.7" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
+          </button>
+          <button type="button" className={`st-dock-btn clickable ${moreOpen ? 'is-on' : ''}`} onClick={() => { setMoreOpen((o) => !o); setSelectedId(null); }} aria-label="More" aria-expanded={moreOpen}>
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="8" r="1.7" fill="currentColor" /><circle cx="8" cy="8" r="1.7" fill="currentColor" /><circle cx="13" cy="8" r="1.7" fill="currentColor" /></svg>
+          </button>
+          <button type="button" className="st-dock-pub clickable" onClick={doPublish} disabled={publishing}>PUBLISH →</button>
+        </div>
+
+        {sheet && (
+          <div className={`st-sheet st-sheet-${sheet}`} role="dialog" aria-label={sheet === 'layer' ? 'Selected layer' : sheet === 'more' ? 'Paper, snap and history' : 'Publish'}>
+            <div className="st-sheet-head">
+              <span className="label">{sheet === 'layer' ? 'SELECTED' : sheet === 'more' ? 'PAPER · PRESS · KEEP' : 'KEEP'}</span>
+              <button type="button" className="st-chip" onClick={() => { setSelectedId(null); setMoreOpen(false); if (publish.stage === 'done' || publish.stage === 'error') setPublish({ stage: 'idle' }); }} aria-label="Close">CLOSE ✕</button>
+            </div>
+            {sheet === 'layer' && inspectorBody}
+            {sheet === 'more' && (
+              <div className="st-stack">
+                <div className="st-k">PAPER</div>
+                {paperRow}
+                <div className="st-k">PRESS</div>
+                {snapButton}
+                {historyRow}
+                <div className="st-k">KEEP</div>
+                <button type="button" className="st-btn clickable" onClick={exportPng}>EXPORT PNG</button>
+              </div>
+            )}
+            {sheet === 'publish' && keepBlock}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------- desktop layout
   return (
-    <div className={`st-composer ${isMobile ? 'is-mobile' : ''}`}>
+    <div ref={rootRef} className="st-composer">
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
 
-      {/* ---------------------------------------------------------- rail */}
-      <aside className="st-rail" aria-label="Tools">
+      <aside ref={railRef} className="st-rail" aria-label="Tools">
         <div className="st-mk"><span className="st-mk-n">VI.A</span><span className="label">LAYERS</span><span className="st-mk-r" /></div>
-        <div className="st-tiles">
-          {TOOL_TILES.map((t) => (
-            <button key={t.type} type="button" className={`st-tile clickable ${tool === 'pen' && t.type === 'pen' ? 'is-on' : ''} ${t.type === 'image' ? 'is-ink' : ''}`} onClick={() => addLayer(t.type)} data-magnet disabled={imgBusy && t.type === 'image'} title={t.type === 'pen' ? 'Click points on the board · Enter or click the first point to close' : undefined}>
-              <TileGlyph type={t.type} />
-              <span>{imgBusy && t.type === 'image' ? 'PRESSING…' : t.label}</span>
-            </button>
-          ))}
-        </div>
+        <div className="st-tiles">{TOOL_TILES.map((t) => toolButton(t))}</div>
 
         <div className="st-mk"><span className="st-mk-n">VI.B</span><span className="label">PAPER</span><span className="st-mk-r" /></div>
-        <div className="st-row">
-          {PAPER_CHOICES.map((p) => (
-            <button key={p} type="button" className={`st-swatch ${doc.paper === p ? 'is-on' : ''}`} style={{ background: INKS[p] }} onClick={() => commit({ ...docRef.current, paper: p })} aria-label={`paper ${p}`} />
-          ))}
-          <button type="button" className={`st-chip ${doc.grain ? 'is-on' : ''}`} onClick={() => commit({ ...docRef.current, grain: !docRef.current.grain })}>GRAIN</button>
-        </div>
+        {paperRow}
 
         <div className="st-mk"><span className="st-mk-n">VI.C</span><span className="label">PRESS</span><span className="st-mk-r" /></div>
         <div className="st-stack">
-          <button type="button" className="st-btn st-btn-ink clickable" onClick={doShuffle} data-magnet>
-            <span>SHUFFLE</span>
-            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h3l6 8h3M2 12h3l2-2.7M11 4h3l-2 2.7" fill="none" stroke="currentColor" strokeWidth="1.5" /></svg>
-          </button>
-          <button type="button" className="st-btn clickable" onClick={() => setSnap((s) => !s)} aria-pressed={snap}>
-            <span>SNAP · {GRID}</span><span className="st-dotlabel"><i className={snap ? 'is-on' : ''} />{snap ? 'ON' : 'OFF'}</span>
-          </button>
-          <div className="st-row st-row-tight">
-            <button type="button" className="st-chip" onClick={undo} disabled={!history.current.past.length}>UNDO</button>
-            <button type="button" className="st-chip" onClick={redo} disabled={!history.current.future.length}>REDO</button>
-            <button type="button" className="st-chip" onClick={clearBoard}>CLEAR</button>
-          </div>
+          {shuffleButton}
+          {snapButton}
+          {historyRow}
         </div>
       </aside>
 
-      {/* ---------------------------------------------------------- board */}
-      <section className="st-frame" ref={frameRef}>
-        <div
-          ref={boardRef}
-          className={`st-board ${snap ? 'show-grid' : ''} ${tool === 'pen' ? 'is-pen' : ''}`}
-          onPointerDown={onBoardDown}
-          onPointerMove={onBoardMove}
-          onPointerUp={onBoardUp}
-          onPointerCancel={onBoardUp}
-          data-xray="STUDIO · BOARD"
-        >
-          <canvas ref={canvasRef} className="st-canvas" />
-          {tool === 'pen' && (
-            <svg className="st-penlayer" aria-hidden="true">
-              {penPath && <path d={penPath} fill="rgba(214,40,40,0.15)" stroke="var(--red)" strokeWidth="1.5" strokeDasharray="4 3" />}
-              {penPts.map(([x, y], i) => <circle key={i} cx={x * S} cy={y * S} r={i === 0 ? 6 : 3.5} fill={i === 0 ? 'var(--cream)' : 'var(--red)'} stroke="var(--ink)" strokeWidth="1.5" />)}
-            </svg>
-          )}
-          <div ref={selRef} data-id={selectedId || ''} className="st-sel" style={{ display: selected ? 'block' : 'none' }} onPointerDown={(e) => { if (selected) { const { bx, by } = toBoard(e); e.stopPropagation(); startDrag(e, { id: selected.id, mode: 'move', bx, by, orig: { ...selected } }); } }}>
-            {['nw', 'ne', 'sw', 'se'].map((h) => <i key={h} className={`st-handle st-h-${h}`} onPointerDown={(e) => onHandleDown(e, h)} />)}
-            <i className="st-handle st-h-rot" onPointerDown={(e) => onHandleDown(e, 'rotate')} title="rotate" />
-            {selected && <span className="st-sel-tag mono">{TYPE_TITLES[selected.type]} · x {Math.round(selected.x)} · y {Math.round(selected.y)}{selected.rot ? ` · ${selected.rot}°` : ''}</span>}
-          </div>
-          <div className="st-board-cap mono">{doc.layers.length} LAYERS · {photoCount} PHOTO{photoCount === 1 ? '' : 'S'} · SEED {doc.seed}</div>
-        </div>
-        {tool === 'pen' && <div className="st-hint mono">PEN · CLICK POINTS · CLICK THE FIRST POINT OR PRESS ENTER TO CLOSE · ESC CANCELS</div>}
-        {notice && <div className="st-notice mono" role="status" onAnimationEnd={() => setNotice(null)}>{notice}</div>}
-      </section>
+      {boardSection}
 
-      {/* ---------------------------------------------------------- inspector */}
-      <aside className="st-inspector" aria-label="Selected layer">
+      <aside ref={inspRef} className="st-inspector" aria-label="Selected layer">
         <div className="st-mk"><span className="st-mk-n">VI.D</span><span className="label">SELECTED</span><span className="st-mk-r" /></div>
-        {selected ? (
-          <Inspector l={selected} index={doc.layers.indexOf(selected)} total={doc.layers.length}
-            update={(patch) => updateLayer(selected.id, patch)}
-            rescreen={(patch) => rescreen(selected.id, patch)}
-            remove={() => removeLayer(selected.id)}
-            duplicate={() => duplicateLayer(selected.id)}
-            reorder={(d) => reorder(selected.id, d)}
-            canRescreen={prepRef.current.has(selected.id)} />
-        ) : (
-          <div className="st-card st-card-empty">
-            <div className="display" style={{ fontSize: 18 }}>NOTHING SELECTED</div>
-            <p>Click a shape on the board to edit it. Drag to move — it snaps to the grid with a spring. Corners resize, the top handle rotates.</p>
-            <p className="mono st-keys">DEL · CTRL+Z · CTRL+D · [ ] · ARROWS</p>
-          </div>
-        )}
+        {inspectorBody}
 
         <div className="st-mk"><span className="st-mk-n">VI.E</span><span className="label">KEEP</span><span className="st-mk-r" /></div>
-        <div className="st-stack st-result" data-xray="STUDIO · PUBLISH">
-          {publish.stage === 'idle' || publish.stage === 'error' ? (
-            <>
-              <button type="button" className="st-btn clickable" onClick={exportPng} data-magnet>EXPORT PNG</button>
-              <button type="button" className="st-btn st-btn-ink clickable" onClick={doPublish} data-magnet>PUBLISH →</button>
-              {publish.stage === 'error' && <p className="st-err mono">{publish.error}</p>}
-            </>
-          ) : publish.stage === 'done' ? (
-            <PublishResult r={publish} onOpenWall={onOpenWall} onAgain={() => setPublish({ stage: 'idle' })} />
-          ) : (
-            <div className="st-progress mono">
-              <i className="st-blink" />
-              {publish.stage === 'rendering' ? 'PRINTING…' : publish.screened ? 'SCREENING THE PHOTO…' : 'HANGING IT…'}
-            </div>
-          )}
-        </div>
+        {keepBlock}
       </aside>
     </div>
   );
