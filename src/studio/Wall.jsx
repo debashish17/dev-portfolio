@@ -14,6 +14,10 @@ const PERIODS = [
 ];
 const RANKED = new Set(['week', 'all']);
 
+// Grid images: the browser picks the 240 px thumbnail on standard-density
+// screens (shown at ≤ 216 px, so pixel-perfect) and the full 480 px poster on
+// dense screens, where the thumbnail would be stretched and soften. Cards load
+// lazily as they scroll into view, 24 per page.
 // Per-session cache of the first page of every tab, so switching tabs is
 // instant (the fetch still runs and refreshes the numbers quietly).
 const wallCache = new Map();
@@ -148,7 +152,7 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
               {top.map((p, i) => (
                 <li key={p.id} className={`st-ten-item ${i === 0 && RANKED.has(period) ? 'is-first' : ''} ${p.id === focusId ? 'is-focus' : ''}`}>
                   <button type="button" className="st-card-poster clickable" onClick={() => onOpenPoster(p.id)} data-magnet>
-                    <img src={p.thumb || p.png} alt={`Poster № ${p.number}`} loading="lazy" decoding="async" width="480" height="640" />
+                    <img src={p.thumb || p.png} srcSet={p.thumb ? `${p.thumb} 240w, ${p.png} 480w` : undefined} sizes="(max-width: 900px) 46vw, (max-width: 1100px) 22vw, 216px" alt={`Poster № ${p.number}`} loading="lazy" decoding="async" width="480" height="640" />
                     {RANKED.has(period) && <span className={`st-rank serif-display ${i === 0 ? 'is-red' : ''}`}>{i + 1}</span>}
                     {i === 0 && period === 'week' && <span className="st-ribbon mono">POSTER OF THE WEEK</span>}
                     {p.status === 'held' && <span className="st-badge mono">HELD · SCREENED TONIGHT</span>}
@@ -181,7 +185,7 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
                 {contenders.map((p) => (
                   <div key={p.id} className={`st-mini ${p.id === focusId ? 'is-focus' : ''}`}>
                     <button type="button" className="st-card-poster clickable" onClick={() => onOpenPoster(p.id)} data-magnet>
-                      <img src={p.thumb || p.png} alt={`Poster № ${p.number}`} loading="lazy" decoding="async" width="480" height="640" />
+                      <img src={p.thumb || p.png} srcSet={p.thumb ? `${p.thumb} 240w, ${p.png} 480w` : undefined} sizes="96px" alt={`Poster № ${p.number}`} loading="lazy" decoding="async" width="480" height="640" />
                       {p.status === 'held' && <span className="st-badge mono">HELD</span>}
                     </button>
                     <div className="st-cap mono"><span>№ {p.number}</span><span className="st-likes"><i /> {p.likes}</span></div>
