@@ -204,19 +204,22 @@ const assert = (c, msg) => { if (!c) throw new Error(msg); };
     });
     await shot('studio-published');
 
-    await step('THE TEN shows the poster · LIKE toggles the count', async () => {
-      await clickText('.st-tabs-head .st-chip', 'THE TEN');
+    await step('THE WALL shows the poster · LIKE toggles the count', async () => {
+      await clickText('.st-tabs-head .st-chip', 'THE WALL');
       await waitFor(`document.querySelectorAll('.st-ten-item').length > 0`, 8000, 'wall items');
       const n = await js(`document.querySelectorAll('.st-ten-item').length`);
       const likesBefore = await js(`document.querySelector('.st-ten-item .st-likes')?.textContent.trim()`);
       await clickSel('.st-ten-item .st-like');
       await waitFor(`document.querySelector('.st-ten-item .st-like')?.classList.contains('is-on')`, 5000, 'liked');
-      await sleep(400);
+      // the button is disabled while the request is in flight — wait for the server's answer
+      await waitFor(`!document.querySelector('.st-ten-item .st-like')?.disabled`, 8000, 'like confirmed');
       const likesAfter = await js(`document.querySelector('.st-ten-item .st-likes')?.textContent.trim()`);
       assert(likesAfter !== likesBefore, `likes unchanged: ${likesAfter}`);
       await clickSel('.st-ten-item .st-like'); // unlike
-      await sleep(500);
+      await waitFor(`!document.querySelector('.st-ten-item .st-like')?.classList.contains('is-on')`, 5000, 'unliked');
+      await waitFor(`!document.querySelector('.st-ten-item .st-like')?.disabled`, 8000, 'unlike confirmed');
       const likesBack = await js(`document.querySelector('.st-ten-item .st-likes')?.textContent.trim()`);
+      assert(likesBack === likesBefore, `likes did not return: ${likesBack}`);
       return { items: n, likesBefore, likesAfter, likesBack };
     });
     await shot('studio-wall');
@@ -235,12 +238,11 @@ const assert = (c, msg) => { if (!c) throw new Error(msg); };
 
     await step('REMIX loads the layers into a fresh composer', async () => {
       await clickText('.st-poster-actions .st-btn', 'REMIX');
-      await waitFor(`!!document.querySelector('.st-board canvas')`, 8000, 'composer back');
-      await sleep(400);
+      // no composer may flash while the layers load — only the loading line
+      await waitFor(`/REMIXING/.test(document.querySelector('.st-sub')?.textContent || '') && !!document.querySelector('.st-board canvas')`, 15000, 'remixed composer');
+      await sleep(300);
       const n = await layers();
       assert(n >= 3, `remix has ${n} layers`);
-      const sub = await js(`document.querySelector('.st-sub')?.textContent`);
-      assert(/REMIXING/.test(sub), `subtitle: ${sub}`);
       return { layers: n };
     });
 

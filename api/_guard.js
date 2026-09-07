@@ -60,9 +60,14 @@ function memIncr(key, ttlMs) {
   return 1;
 }
 
+// Upstash's own env names, or the KV_* names the Vercel Marketplace install
+// writes (same REST API, same tokens). Either pair turns durable limits on.
+export const redisUrl = () => env('UPSTASH_REDIS_REST_URL') || env('KV_REST_API_URL');
+export const redisToken = () => env('UPSTASH_REDIS_REST_TOKEN') || env('KV_REST_API_TOKEN');
+
 async function redisIncr(key, ttlSeconds) {
-  const url = env('UPSTASH_REDIS_REST_URL');
-  const token = env('UPSTASH_REDIS_REST_TOKEN');
+  const url = redisUrl();
+  const token = redisToken();
   if (!url || !token) return null;
   const res = await fetch(`${url}/pipeline`, {
     method: 'POST',
@@ -85,8 +90,7 @@ export async function incr(key, ttlSeconds) {
 }
 
 // True when durable limits are actually active — useful for /api health output.
-export const hasDurableLimits = () =>
-  Boolean(env('UPSTASH_REDIS_REST_URL') && env('UPSTASH_REDIS_REST_TOKEN'));
+export const hasDurableLimits = () => Boolean(redisUrl() && redisToken());
 
 // ------------------------------------------------------------------ responses
 export const json = (status, body) =>

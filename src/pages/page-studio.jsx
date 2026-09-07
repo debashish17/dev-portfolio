@@ -47,7 +47,14 @@ export default function StudioPage() {
   const openWall = useCallback(() => setView({ kind: 'wall' }), []);
   const openCompose = useCallback(() => setView({ kind: 'compose' }), []);
 
+  // One remix in flight at a time. The ref (not state) is what stops a second
+  // call while the layer JSON is loading — an effect keyed on `view` used to
+  // re-enter remix() on every render and hit React's update-depth limit once
+  // real network latency stretched the wait.
+  const remixing = useRef(null);
   const remix = useCallback(async (id) => {
+    if (remixing.current === id) return;
+    remixing.current = id;
     setView({ kind: 'remix-loading', id });
     try {
       const d = await studioApi.doc(id);
@@ -58,10 +65,16 @@ export default function StudioPage() {
     } catch {
       setRemixDoc(null);
       setView({ kind: 'compose' });
+    } finally {
+      remixing.current = null;
     }
   }, []);
 
-  useEffect(() => { if (view.kind === 'remix-loading' && view.id && !remixDoc) remix(view.id); }, [view, remixDoc, remix]);
+  // Arriving via /studio?remix=<id> — once, on mount.
+  useEffect(() => {
+    const v = viewFromLocation();
+    if (v.kind === 'remix-loading' && v.id) remix(v.id);
+  }, [remix]);
 
   useXRayRegister('studio', {
     variant: isMobile ? 'mobile' : 'desktop', timeline: null, scroller: scrollRef, values: {},
@@ -69,21 +82,23 @@ export default function StudioPage() {
       `view: ${view.kind}`,
       'board: canvas 2D · one draw per frame during a drag · React commits once per gesture',
       `snap: spring k${SNAP_SPRING.stiffness} d${SNAP_SPRING.damping} m${SNAP_SPRING.mass} (ζ≈0.73, overshoots on purpose)`,
-      'publish: poster PNG 600×800 + share card 1200×630 rendered in the browser',
+      'publish: poster PNG 480×640 + share card 1200×630 rendered in the browser',
     ],
   });
 
-  const tab = view.kind === 'wall' ? 'wall' : view.kind === 'poster' ? 'poster' : 'compose';
+  // 'loading' keeps the composer unmounted while remix layers are in flight —
+  // otherwise a fresh board flashes for half a second and is then replaced.
+  const tab = view.kind === 'wall' ? 'wall' : view.kind === 'poster' ? 'poster' : view.kind === 'remix-loading' ? 'loading' : 'compose';
 
   return (
     <div ref={scrollRef} className="paper-bg st-page" style={{ position: 'absolute', inset: 0, overflowX: 'hidden', overflowY: 'auto' }}>
       <div className="grid-overlay" />
       <div className="st-page-inner">
-        <header className={`st-head ${tab === 'compose' ? '' : 'is-slim'}`}>
+        <header className={`st-head ${tab === 'compose' || tab === 'loading' ? '' : 'is-slim'}`}>
           <div>
             <div className="label" style={{ color: 'var(--red)' }}>FOLIO № VI · STUDIO{tab === 'poster' ? ' · ONE POSTER' : ''}</div>
             {/* The wall and the poster view carry their own titles */}
-            {tab === 'compose' && (
+            {(tab === 'compose' || tab === 'loading') && (
               <>
                 <h1 className="display st-title">THE STUDIO<span style={{ color: 'var(--red)' }}>.</span></h1>
                 <div className="mono st-dim st-sub">
@@ -93,8 +108,8 @@ export default function StudioPage() {
             )}
           </div>
           <nav className="st-tabs st-tabs-head" aria-label="Studio views">
-            <button type="button" className={`st-chip st-chip-lg clickable ${tab === 'compose' ? 'is-on' : ''}`} onClick={openCompose} data-magnet>COMPOSE</button>
-            <button type="button" className={`st-chip st-chip-lg clickable ${tab !== 'compose' ? 'is-on' : ''}`} onClick={openWall} data-magnet>THE TEN</button>
+            <button type="button" className={`st-chip st-chip-lg clickable ${tab === 'compose' || tab === 'loading' ? 'is-on' : ''}`} onClick={openCompose} data-magnet>COMPOSE</button>
+            <button type="button" className={`st-chip st-chip-lg clickable ${tab === 'wall' || tab === 'poster' ? 'is-on' : ''}`} onClick={openWall} data-magnet>THE WALL</button>
           </nav>
         </header>
 
@@ -107,7 +122,7 @@ export default function StudioPage() {
             onOpenWall={(id) => (id ? openPoster(id) : openWall())}
           />
         )}
-        {view.kind === 'remix-loading' && <div className="mono st-dim st-wall-msg"><i className="st-blink" /> LOADING THE LAYERS…</div>}
+        {tab === 'loading' && <div className="mono st-dim st-wall-msg"><i className="st-blink" /> LOADING THE LAYERS…</div>}
         {tab === 'wall' && <Wall onOpenPoster={openPoster} onRemix={remix} onMakeYours={openCompose} />}
         {tab === 'poster' && <PosterView id={view.id} onRemix={remix} onBack={openWall} />}
 

@@ -35,7 +35,7 @@ export default function PosterView({ id, onRemix, onBack }) {
         <div className="st-card st-wall-msg">
           <div className="display" style={{ fontSize: 22 }}>{state === 'missing' ? 'NO SUCH POSTER.' : 'THE WALL DID NOT ANSWER.'}</div>
           <p>{state === 'missing' ? 'It may have been taken down, or the link is off by a letter.' : 'Try again in a moment.'}</p>
-          <button type="button" className="st-btn st-btn-ink clickable" onClick={onBack} data-magnet>SEE THE TEN →</button>
+          <button type="button" className="st-btn st-btn-ink clickable" onClick={onBack} data-magnet>SEE THE WALL →</button>
         </div>
       </div>
     );
@@ -61,7 +61,7 @@ export default function PosterView({ id, onRemix, onBack }) {
           <button type="button" className="st-btn clickable" onClick={async () => { setCopied(await copyText(url)); setTimeout(() => setCopied(false), 1800); }} data-magnet>{copied ? 'COPIED' : 'COPY LINK'}</button>
         </div>
         <div className="mono st-dim" style={{ marginTop: 14, fontSize: 11 }}>{url.replace(/^https?:\/\//, '')}</div>
-        <button type="button" className="st-link mono" style={{ marginTop: 22 }} onClick={onBack}>← SEE THE TEN</button>
+        <button type="button" className="st-link mono" style={{ marginTop: 22 }} onClick={onBack}>← SEE THE WALL</button>
       </div>
     </div>
   );

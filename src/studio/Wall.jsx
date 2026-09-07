@@ -70,7 +70,7 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
       <div className="st-wall-head">
         <div>
           <div className="label" style={{ color: 'var(--red)' }}>FOLIO № VI · THE WALL</div>
-          <h2 className="display st-wall-title">THE TEN<span style={{ color: 'var(--red)' }}>.</span></h2>
+          <h2 className="display st-wall-title">THE WALL<span style={{ color: 'var(--red)' }}>.</span></h2>
           <div className="mono st-dim st-wall-sub">ONLY THE TEN MOST-LIKED POSTERS HANG HERE. LIKE ONE TO KEEP IT UP; MAKE ONE TO TAKE A SPOT.</div>
         </div>
         <div className="st-wall-stats">

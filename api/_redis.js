@@ -1,14 +1,14 @@
 // SERVER-SIDE ONLY. Upstash Redis over its REST pipeline — no SDK, one fetch
 // per batch. Returns null-configured cleanly so callers can degrade.
-import { env } from './_guard.js';
+import { redisUrl, redisToken } from './_guard.js';
 
-export const redisConfigured = () => Boolean(env('UPSTASH_REDIS_REST_URL') && env('UPSTASH_REDIS_REST_TOKEN'));
+export const redisConfigured = () => Boolean(redisUrl() && redisToken());
 
 // redis(['SET', k, v], ['GET', k]) → [result, result]. Throws on a transport
 // error or on the first command error; callers decide whether that is fatal.
 export async function redis(...cmds) {
-  const url = env('UPSTASH_REDIS_REST_URL');
-  const token = env('UPSTASH_REDIS_REST_TOKEN');
+  const url = redisUrl();
+  const token = redisToken();
   if (!url || !token) throw new Error('redis not configured');
   const res = await fetch(`${url}/pipeline`, {
     method: 'POST',

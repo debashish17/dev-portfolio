@@ -6,7 +6,7 @@ import studio from "../api/studio.js";
 import posterPage from "../api/p.js";
 
 const server = serve({
-  port: 0, // OS will automatically pick an available port
+  port: Number(process.env.PORT) || 0, // PORT=3000 for a stable local URL, else the OS picks one
   routes: {
     // Resident AI. Same Web-standard handler Vercel runs in production,
     // so `bun dev` exercises the real code path (needs GEMINI_API_KEY in
