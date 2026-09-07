@@ -533,8 +533,10 @@ export default function Composer({ initialDoc, remixOf, onPublished, onOpenWall 
         <div className="st-stack st-result" data-xray="STUDIO · PUBLISH">
           {publish.stage === 'idle' || publish.stage === 'error' ? (
             <>
-              <button type="button" className="st-btn clickable" onClick={exportPng} data-magnet>EXPORT PNG</button>
-              <button type="button" className="st-btn st-btn-ink clickable" onClick={doPublish} data-magnet>PUBLISH →</button>
+              <div className="st-row st-keep">
+                <button type="button" className="st-btn clickable" onClick={exportPng} data-magnet>EXPORT PNG</button>
+                <button type="button" className="st-btn st-btn-ink clickable" onClick={doPublish} data-magnet>PUBLISH →</button>
+              </div>
               {publish.stage === 'error' && <p className="st-err mono">{publish.error}</p>}
             </>
           ) : publish.stage === 'done' ? (
