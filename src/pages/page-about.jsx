@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useSpring, useTransform, useMotionValue, animate } from 'motion/react';
 import { useIsMobile, easeOut, easeInOut, easeIn, backOut, seg, SectionMarker } from '../components/primitives.jsx';
-import { SCROLL_SPRING, POINTER_SPRING, ABOUT_SEGS, ABOUT_TIMELINE, aboutCameraTransform } from '../motion/timeline.js';
-import { useXRayRegister } from '../components/xray/hooks.js';
-import { xv } from '../components/xray/descriptors.js';
+import { SCROLL_SPRING, POINTER_SPRING, ABOUT_SEGS, aboutCameraTransform } from '../motion/timeline.js';
 
 // ABOUT PAGE - bio, education, summary
 // Layout: split poster — left half is portrait silhouette in halftone + geometric collage,
@@ -60,20 +58,6 @@ export default function AboutPage() {
   // aboutCamera() in timeline.js, shared with the x-ray scrubber's readout.
   const cameraTransform = useTransform(progress, (p) => aboutCameraTransform(p, isMobile));
 
-  // Publish the MotionValues this page already owns to x-ray mode.
-  useXRayRegister('about', {
-    variant: isMobile ? 'mobile' : 'desktop', timeline: ABOUT_TIMELINE, scroller: scrollRef,
-    values: {
-      scrollY: xv.raw(scrollYProgress, [0, 1], '', 'scrollYProgress (raw)'),
-      progress: xv.progress(progress, SCROLL_SPRING, { source: 'useSpring(scrollYProgress)' }),
-      build: xv.raw(build, [0, 1], '', 'build · animate() 1.4s'),
-      rawMx: xv.raw(rawMx, [-6, 6]), rawMy: xv.raw(rawMy, [-6, 6]),
-      mx: xv.spring(mx, POINTER_SPRING, [-6, 6]), my: xv.spring(my, POINTER_SPRING, [-6, 6]),
-      exit1: xv.seg(exit1, ABOUT_SEGS.exit1), enter2: xv.seg(enter2, ABOUT_SEGS.enter2),
-      exit2: xv.seg(exit2, ABOUT_SEGS.exit2), enter3: xv.seg(enter3, ABOUT_SEGS.enter3),
-      camera: xv.transform(cameraTransform, 'camera · translateZ / rotateX / translateY'),
-    },
-  });
 
   return (
     <div ref={scrollRef} style={{
@@ -159,14 +143,14 @@ function AboutScene1({ build, exit, mx, my }) {
         transformStyle: 'preserve-3d',
       }}>
         {/* Big black square — peeks top-left */}
-        <motion.div data-xray="SCENE 1 · SQUARE" data-xray-values="exit1,mx,my" style={{
+        <motion.div style={{
           position: 'absolute',
           width: 320, height: 420,
           background: 'var(--ink)',
           transform: squareTransform,
         }} />
         {/* Red circle — bleeds bottom-right */}
-        <motion.div data-xray="SCENE 1 · DISC" data-xray-values="exit1,mx,my" style={{
+        <motion.div style={{
           position: 'absolute',
           width: 460, height: 460,
           background: 'var(--red)',
@@ -174,7 +158,7 @@ function AboutScene1({ build, exit, mx, my }) {
           transform: discTransform,
         }} />
         {/* Halftone strip — bleeds left edge */}
-        <motion.div data-xray="SCENE 1 · STRIP" data-xray-values="exit1" style={{
+        <motion.div style={{
           position: 'absolute',
           width: 180, height: 460,
           backgroundImage: 'radial-gradient(circle, var(--ink) 1.4px, transparent 2px)',
@@ -183,7 +167,7 @@ function AboutScene1({ build, exit, mx, my }) {
           opacity: 0.5,
         }} />
         {/* Portrait silhouette - abstract head shape */}
-        <motion.svg data-xray="SCENE 1 · SILHOUETTE" data-xray-values="exit1" viewBox="0 0 200 260" style={{
+        <motion.svg viewBox="0 0 200 260" style={{
           position: 'relative',
           width: 280, height: 360,
           transform: svgTransform,
@@ -205,7 +189,7 @@ function AboutScene1({ build, exit, mx, my }) {
         </motion.svg>
 
         {/* Real photo — stacked on top of shapes */}
-        <motion.div data-xray="SCENE 1 · PHOTO" data-xray-values="exit1,mx,my" style={{
+        <motion.div style={{
           position: 'absolute',
           width: 340, height: 460,
           top: '50%', left: '50%',
@@ -229,7 +213,7 @@ function AboutScene1({ build, exit, mx, my }) {
         </motion.div>
 
         {/* Number plate */}
-        <motion.div data-xray="SCENE 1 · PLATE" data-xray-values="exit1" style={{
+        <motion.div style={{
           position: 'absolute',
           bottom: '15%', left: '15%',
           background: 'var(--ochre)',
@@ -245,7 +229,7 @@ function AboutScene1({ build, exit, mx, my }) {
       </div>
 
       {/* Right: identification */}
-      <motion.div data-xray="SCENE 1 · ID COLUMN" data-xray-values="build,exit1" style={{
+      <motion.div style={{
         padding: '80px 48px',
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
         gap: 20,
@@ -340,7 +324,7 @@ function AboutScene2({ enter, exit }) {
         <SectionMarker num="II.A" label="EDUCATION RECORD" />
       </div>
 
-      <motion.div className="display about-edu-title" data-xray="SCENE 2 · TITLE" data-xray-values="enter2,exit2" style={{
+      <motion.div className="display about-edu-title" style={{
         fontSize: 'clamp(60px, 8vw, 120px)',
         marginBottom: 60,
         transform: titleTransform,
@@ -356,7 +340,7 @@ function AboutScene2({ enter, exit }) {
         maxWidth: 1100,
       }} className="about-edu-grid">
         {/* Timeline bar */}
-        <motion.div data-xray="SCENE 2 · RAIL" data-xray-values="enter2,exit2" style={{
+        <motion.div style={{
           position: 'absolute',
           left: 0, right: 0,
           top: 80,
@@ -383,7 +367,7 @@ function EduCard({ enter, exit, e, i }) {
     return `translateY(${(1 - inT) * 80 - outT * 120}vh) translateZ(${i * 20}px)`;
   });
   return (
-    <motion.div data-xray={`SCENE 2 · CARD ${i + 1}`} data-xray-values="enter2,exit2" style={{
+    <motion.div style={{
       transform,
       transformStyle: 'preserve-3d',
     }}>
@@ -453,7 +437,7 @@ function AboutScene3({ enter, isMobile }) {
         maxWidth: 1280,
       }} className="about-exp-grid">
         {/* Left: the employer — licence, role, stack */}
-        <motion.div className="about-exp-left" data-xray="SCENE 3 · POST" data-xray-values="enter3" style={{
+        <motion.div className="about-exp-left" style={{
           position: 'relative',
           padding: isMobile ? '28px 20px' : '40px 36px',
           background: 'var(--ink)',
@@ -491,7 +475,7 @@ function AboutScene3({ enter, isMobile }) {
         </motion.div>
 
         {/* Right: the two shipped products, both publicly reachable */}
-        <motion.div className="about-exp-right" data-xray="SCENE 3 · PRODUCTS" data-xray-values="enter3" style={{
+        <motion.div className="about-exp-right" style={{
           display: 'flex',
           flexDirection: 'column',
           gap: 16,

@@ -3,11 +3,8 @@ import { Analytics } from '@vercel/analytics/react';
 import { RouteContext, useRoute, CustomCursor, LogoMark, LiveClock } from './components/primitives.jsx';
 import { initAnalytics, trackPageView } from './lib/analytics.js';
 import { useHotkey } from './lib/hotkeys.js';
-import { useRenderCount } from './lib/xray/render-count.js';
 import Loader from './components/loader.jsx';
 import Chat from './components/chat.jsx';
-import XRayRoot from './components/xray/XRayRoot.jsx';
-import XRayToggle from './components/xray/XRayToggle.jsx';
 import HomePage from './pages/page-home.jsx';
 import AboutPage from './pages/page-about.jsx';
 import WorkPage from './pages/page-work.jsx';
@@ -28,7 +25,6 @@ const syncUrl = (next) => {
 };
 
 function App() {
-  useRenderCount('App');
   const [loading, setLoading] = useState(true);
   const [route, setRoute] = useState(routeFromUrl);
   const [transitioning, setTransitioning] = useState(false);
@@ -76,10 +72,6 @@ function App() {
       {/* Page transition curtain */}
       {transitioning && <TransitionCurtain pendingRoute={pendingRoute} />}
 
-      {/* X-ray mode — sibling of .stage on purpose: .stage's perspective +
-          preserve-3d would mis-position a fixed overlay mounted inside a page */}
-      <XRayRoot route={pendingRoute || route} transitioning={transitioning} loading={loading} />
-
       {/* Resident AI — mounted inside RouteContext so it can drive the site */}
       {!loading && <Chat />}
 
@@ -98,7 +90,6 @@ const ROUTES = [
 ];
 
 function Nav({ route, go, loading }) {
-  useRenderCount('Nav');
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const navigate = React.useCallback((id) => {
@@ -142,7 +133,6 @@ function Nav({ route, go, loading }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <XRayToggle loading={loading} />
           <div className="mono nav-clock-location" style={{ fontSize: 10, opacity: 0.6 }}>SUNDERGARH · IN</div>
           <LiveClock />
           {/* Hamburger button — only visible on mobile (CSS toggles display) */}

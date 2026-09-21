@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRoute, LogoMark } from './primitives.jsx';
 import { requestProject } from '../lib/site-bus.js';
 
-// D.D.B — the site's resident AI.
+// The site's chat. It has no name and does not introduce itself as anything.
 // Streams plain text from /api/chat. The API key lives only in that function.
 //
 // Control tokens (§6): the model may append ONE [[open:...]] / [[do:...]] to a
@@ -75,13 +75,13 @@ function Rich({ text }) {
 }
 
 const GREETING =
-  "I'm D.D.B — Dibya's side of this site that actually talks back. Ask me about the work, the stack, or what I'm building at RBP Finivis. Or make something: there is a poster studio here.";
+  "I have been asked to make him look good. Ask about the work, the stack, or what he is building now. Or make something: there is a poster studio here.";
 
 const CHIPS = [
-  'What have you built?',
+  'What has he built?',
   'Can I make something here?',
-  "What are you working on now?",
-  'Are you open to work?',
+  'What is he working on now?',
+  'Is he open to work?',
 ];
 
 // One nudge towards the Studio, once per browser, and only after the visitor
@@ -316,7 +316,7 @@ export default function Chat() {
       <button
         className={`ddb-launcher clickable ${open ? 'is-open' : ''}`}
         onClick={() => { setOpen((o) => !o); setUnread(false); }}
-        aria-label={open ? 'Close chat' : 'Ask D.D.B'}
+        aria-label={open ? 'Close chat' : 'Open chat'}
         aria-expanded={open}
         data-magnet
       >
@@ -328,17 +328,16 @@ export default function Chat() {
       {nudge && !open && (
         <div className="ddb-nudge" role="status">
           <button type="button" className="ddb-nudge-x" onClick={() => setNudge(false)} aria-label="Dismiss">×</button>
-          <span className="mono ddb-tag">D.D.B</span>
-          <p>{NUDGE_TEXT}</p>
+                    <p>{NUDGE_TEXT}</p>
           <button type="button" className="ddb-nudge-go mono clickable" onClick={openStudio} data-magnet>OPEN THE STUDIO →</button>
         </div>
       )}
 
-      <div className={`ddb-panel ${open ? 'open' : ''}`} role="dialog" aria-label="Chat with D.D.B">
+      <div className={`ddb-panel ${open ? 'open' : ''}`} role="dialog" aria-label="Chat">
         <header className="ddb-head">
           <div className="ddb-head-id">
             <span className="ddb-live" aria-hidden="true" />
-            <span className="display">D.D.B</span>
+            <span className="display">Ask</span>
             <span className="mono ddb-head-sub">RESIDENT AI</span>
           </div>
           <button className="ddb-close" onClick={() => setOpen(false)} aria-label="Close">×</button>
@@ -351,8 +350,7 @@ export default function Chat() {
                 <div className="mono ddb-sys">{m.text}</div>
               ) : (
                 <div className={`ddb-bubble ddb-bubble-${m.role}`}>
-                  {m.role === 'model' && <span className="mono ddb-tag">D.D.B</span>}
-                  <Rich text={displayText(m.text, m.streaming) || (m.streaming ? '' : m.text)} />
+                                    <Rich text={displayText(m.text, m.streaming) || (m.streaming ? '' : m.text)} />
                   {m.streaming && <span className="ddb-caret" aria-hidden="true" />}
                   {m.action && <button type="button" className="ddb-action mono clickable" onClick={() => { setOpen(false); openStudio(); }}>{m.action.label}</button>}
                 </div>

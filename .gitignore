@@ -55,3 +55,6 @@ references/
 
 # Studio PNG exports saved into the repo root while testing
 /poster-*.png
+
+# Hero render source archive (frames are extracted into public/hero/frames)
+/scrub_webp_1440.zip

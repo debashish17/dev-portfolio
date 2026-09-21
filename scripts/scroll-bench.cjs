@@ -3,10 +3,10 @@
 // Launches its own Chrome with occlusion/background throttling disabled (a
 // minimized or covered Chrome throttles requestAnimationFrame to ~1 Hz, which
 // makes any in-browser measurement meaningless), scrolls through all four acts
-// with wheel-sized notches, and reports frame-time percentiles, long tasks, a
-// main-thread breakdown from a CDP trace, and the scroll spring's step response
-// (time to 90 % and time to settle) read from the page's own MotionValue via the
-// x-ray registry (window.__xray, exposed on localhost only).
+// with wheel-sized notches, and reports frame-time percentiles, long tasks and
+// a main-thread breakdown from a CDP trace. The landing is a scrubbed frame
+// sequence, so p95 frame time is the number that matters: it is what decides
+// whether the staircase tracks the scroll or stutters behind it.
 //
 //   bun run bench:scroll                       # against http://localhost:8899/
 //   node scripts/scroll-bench.cjs <url> [cpuThrottle=1] [label=run]
@@ -75,27 +75,6 @@ const SCROLL_SCRIPT = `(async () => {
   });
 })()`;
 
-// Step response of the scroll spring: park mid-hold, jump one act, time 90 % and settle.
-const STEP_SCRIPT = `(async () => {
-  const sc = [...document.querySelectorAll('.stage div')].find((d) => d.scrollHeight > d.clientHeight * 3 && getComputedStyle(d).overflowY === 'auto');
-  const max = sc.scrollHeight - sc.clientHeight;
-  const e = window.__xray && window.__xray.pageRegistry.current();
-  if (!e || !e.values.progress) return JSON.stringify({ error: 'no x-ray registry on this page (is the URL localhost?)' });
-  const mv = e.values.progress.mv, raw = e.values.scrollY.mv, cfg = e.values.progress.spring;
-  sc.scrollTop = max * 0.355; await new Promise((r) => setTimeout(r, 2500));
-  const from = mv.get();
-  sc.scrollTop = max * 0.455;
-  const target = sc.scrollTop / max;
-  const d = target - from;
-  const t0 = performance.now(); let t90 = null, tSettle = null, frames = 0, started = false;
-  await new Promise((res) => { const f = () => { frames++; const v = mv.get();
-    if (!started && Math.abs(v - from) > 0.0005) started = true;
-    if (t90 == null && Math.abs(v - from) >= 0.9 * Math.abs(d)) t90 = performance.now() - t0;
-    if (started && Math.abs(target - v) <= 0.0005 && !mv.isAnimating()) { tSettle = performance.now() - t0; return res(); }
-    if (performance.now() - t0 > 4000) return res(); requestAnimationFrame(f); }; requestAnimationFrame(f); });
-  return JSON.stringify({ spring: cfg, from: +from.toFixed(4), target: +target.toFixed(4), t90ms: t90 && Math.round(t90), settleMs: tSettle && Math.round(tSettle), tailFrames: frames });
-})()`;
-
 (async () => {
   const chrome = spawn(CHROME, [
     `--remote-debugging-port=${PORT}`, `--user-data-dir=${path.join(OUT_DIR, 'profile')}`,
@@ -132,7 +111,6 @@ const STEP_SCRIPT = `(async () => {
     const result = JSON.parse(await evalJs(SCROLL_SCRIPT));
     await cdp.send('Tracing.end');
     await done;
-    const step = JSON.parse(await evalJs(STEP_SCRIPT));
 
     const mark = (n) => events.find((e) => e.name === n && e.cat && e.cat.includes('blink.user_timing'));
     const t0 = mark('scroll-start')?.ts, t1 = mark('settle-end')?.ts;
@@ -149,7 +127,7 @@ const STEP_SCRIPT = `(async () => {
       }
     }
     const mainThreadMs = Object.fromEntries(Object.entries(buckets).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, +v.toFixed(0)]));
-    const report = { label, url, cpuThrottle: cpu, rafPerS, ...result, windowMs: t0 && t1 ? Math.round((t1 - t0) / 1000) : 0, mainThreadMs, drawFrames, step };
+    const report = { label, url, cpuThrottle: cpu, rafPerS, ...result, windowMs: t0 && t1 ? Math.round((t1 - t0) / 1000) : 0, mainThreadMs, drawFrames };
     fs.writeFileSync(`${out}.json`, JSON.stringify(report, null, 2));
     fs.writeFileSync(`${out}.trace.json`, JSON.stringify({ traceEvents: events }));
     console.log(JSON.stringify(report, null, 2));

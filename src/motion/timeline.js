@@ -1,9 +1,8 @@
 import { seg, easeInOut } from '../components/primitives.jsx';
 
-// Shared motion constants — the single source the pages AND the x-ray HUD read.
-// These used to live as local literals inside each page; keeping them here means
-// a zone edit moves the scene and the x-ray timeline together, and the HUD can
-// never drift from what the page actually animates.
+// Shared motion constants. These used to live as local literals inside each
+// page; keeping them here means a zone edit moves the whole scene at once
+// instead of drifting out of sync with what the page actually animates.
 
 // Scroll spring. It exists to blend discrete wheel notches into continuous motion.
 // The previous tune {110, 26, 0.5} was heavily overdamped (ζ≈1.75, slow pole
@@ -19,19 +18,20 @@ export const SNAP_SPRING = Object.freeze({ stiffness: 380, damping: 22, mass: 0.
 
 // Transition zones on the 0–1 scroll progress. Everything between two zones is a
 // hold plateau where the camera is parked and nothing moves but the pointer.
-export const HOME_ZONES = Object.freeze([[0.17, 0.27], [0.44, 0.54], [0.71, 0.81]]);
+// The landing runs TWO acts now — the name, then the manifesto — so this is one
+// transition zone, not the three the old four-act scroll had. Everything either
+// side of the zone is a hold plateau where the camera is parked and nothing
+// moves but the pointer.
+export const HOME_ZONES = Object.freeze([[0.42, 0.58]]);
+
 export const ABOUT_ZONES = Object.freeze([[0.20, 0.34], [0.56, 0.70]]);
 
-// The exact sub-windows each page hands to seg(). Derived rather than retyped so
-// the HUD's seg bars and the page's useTransform use literally the same numbers.
+// The exact sub-windows each page hands to seg(). Derived rather than retyped.
 export const HOME_SEGS = Object.freeze({
   exit1:  HOME_ZONES[0],
   enter2: [HOME_ZONES[0][0] + 0.02, HOME_ZONES[0][1] + 0.02],
-  exit2:  HOME_ZONES[1],
-  enter3: [HOME_ZONES[1][0] + 0.02, HOME_ZONES[1][1] + 0.02],
-  exit3:  HOME_ZONES[2],
-  enter4: [HOME_ZONES[2][0] + 0.02, HOME_ZONES[2][1] + 0.04],
 });
+
 export const ABOUT_SEGS = Object.freeze({
   exit1:  ABOUT_ZONES[0],
   enter2: [ABOUT_ZONES[0][0] + 0.02, ABOUT_ZONES[0][1] + 0.02],
@@ -39,27 +39,17 @@ export const ABOUT_SEGS = Object.freeze({
   enter3: [ABOUT_ZONES[1][0] + 0.02, ABOUT_ZONES[1][1] + 0.03],
 });
 
-// [[0, z1a], [z1b, z2a], …, [znb, 1]]
-export const holdsFromZones = (zones) => {
-  const holds = [];
-  let start = 0;
-  for (const [a, b] of zones) { holds.push([start, a]); start = b; }
-  holds.push([start, 1]);
-  return holds;
-};
-export const zoneMid = (z) => (z[0] + z[1]) / 2;
 
-// Camera math lifted out of the pages' useTransform callbacks. The page builds
-// its transform string from these; the HUD evaluates z/tilt at any progress
-// without parsing a matrix. Acts park at z 0/600/1100/1700 so resting acts
-// render 1:1; tilt is sin(π·s) so it peaks mid-zone and is exactly 0 at holds.
+// Camera math lifted out of the pages' useTransform callbacks, so the page
+// builds its transform string from a named function rather than inline maths.
+
+// Two planes: the name rests at z 0, the manifesto at z 600, and the camera
+// parks exactly on each at its hold so a resting act renders 1:1 and centred —
+// any offset would zoom or shift it through the perspective origin. Tilt is
+// sin(pi*s), so it peaks mid-zone and is exactly 0 at both holds.
 export function homeCamera(p) {
   const s1 = seg(p, HOME_ZONES[0][0], HOME_ZONES[0][1], easeInOut);
-  const s2 = seg(p, HOME_ZONES[1][0], HOME_ZONES[1][1], easeInOut);
-  const s3 = seg(p, HOME_ZONES[2][0], HOME_ZONES[2][1], easeInOut);
-  const z = s1 * 600 + s2 * 500 + s3 * 600;
-  const tilt = (Math.sin(Math.PI * s1) + Math.sin(Math.PI * s2) + Math.sin(Math.PI * s3)) * -5;
-  return { z, tilt };
+  return { z: s1 * 600, tilt: Math.sin(Math.PI * s1) * -5 };
 }
 export const homeCameraTransform = (p) => {
   const { z, tilt } = homeCamera(p);
@@ -81,30 +71,3 @@ export const aboutCameraTransform = (p, isMobile) => {
   if (c.z === undefined) return `translateY(${-c.y}vh)`;
   return `translateZ(${-c.z}px) rotateX(${c.tilt}deg) translateY(${-c.y}vh)`;
 };
-
-// What the x-ray timeline strip draws for each scroll-driven page.
-export const HOME_TIMELINE = Object.freeze({
-  id: 'home',
-  scrollLength: '650vh',
-  zones: HOME_ZONES,
-  holds: holdsFromZones(HOME_ZONES),
-  acts: ['I', 'II', 'III', 'IV'],
-  actNames: ['TITLE', 'MANIFESTO', 'SKILLS', 'EXIT'],
-  camera: homeCamera,
-  planesZ: [0, 600, 1100, 1700],
-  tiltDeg: -5,
-  perspectiveOrigin: '50% 40%',
-});
-export const ABOUT_TIMELINE = Object.freeze({
-  id: 'about',
-  scrollLength: '500vh',
-  zones: ABOUT_ZONES,
-  holds: holdsFromZones(ABOUT_ZONES),
-  acts: ['1', '2', '3'],
-  actNames: ['PORTRAIT', 'TRAJECTORY', 'CURRENT POST'],
-  camera: aboutCamera,
-  planesZ: [0, 300, 600],
-  planesYvh: [0, 100, 200],
-  tiltDeg: -4,
-  perspectiveOrigin: '50% 50%',
-});

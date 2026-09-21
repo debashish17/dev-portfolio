@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, useTransform, useMotionValue, animate } from 'motion/react';
-import { useXRayRegister } from '../components/xray/hooks.js';
-import { xv } from '../components/xray/descriptors.js';
-import { useRenderCount } from '../lib/xray/render-count.js';
 import { takePendingProject } from '../lib/site-bus.js';
 import { useRoute, useMouseParallaxMV, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
 
@@ -173,16 +170,6 @@ export default function WorkPage() {
   const mouse = useMouseParallaxMV(isMobile ? 0 : 4);
   const discParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * 5}px, ${y * 5}px)`);
 
-  // Publish to x-ray mode. No scroll timeline on this page — pointer parallax only.
-  useXRayRegister('work', {
-    variant: isMobile ? 'mobile' : 'desktop', timeline: null, scroller: null,
-    values: {
-      mouseX: xv.raw(mouse.x, [-4, 4], '', 'useMouseParallaxMV.x (unsprung)'),
-      mouseY: xv.raw(mouse.y, [-4, 4], '', 'useMouseParallaxMV.y (unsprung)'),
-      discParallax: xv.transform(discParallax, 'decor disc · translate'),
-    },
-    notes: ['card width: CSS transition flex 0.6s', 'deconstruct: MotionValue tween 700ms'],
-  });
 
   return (
     <div className="paper-bg" style={{
@@ -220,7 +207,7 @@ export default function WorkPage() {
       </div>
 
       {/* Background poster shapes */}
-      <motion.div data-xray="DECOR · DISC" data-xray-values="mouseX,mouseY" style={{
+      <motion.div style={{
         position: 'absolute',
         right: -120, top: 80,
         width: 380, height: 380,
@@ -278,7 +265,6 @@ function ProjectCard({ project, index, isActive, anyActive, onActivate, onDeacti
   return (
     <div
       data-magnet
-      data-xray={`CARD ${project.no}`}
       className="work-project-card"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -433,7 +419,6 @@ function ProjectDetail({ project, onClose }) {
   // One MotionValue tween drives every piece through useTransform, so Motion
   // writes the styles and React renders this overlay exactly once — it used to
   // setState from a rAF loop for 700ms (~42 renders of this whole subtree).
-  useRenderCount('ProjectDetail');
   const t = useMotionValue(0);
   const isMobile = useIsMobile();
   useEffect(() => {
@@ -496,7 +481,7 @@ function ProjectDetail({ project, onClose }) {
         transformStyle: 'preserve-3d',
       }}>
         {/* Piece 1: number plate */}
-        <motion.div className="work-detail-piece1" data-xray="DETAIL · PLATE" data-xray-render="ProjectDetail" style={isMobile ? {
+        <motion.div className="work-detail-piece1" style={isMobile ? {
           background: project.color,
           color: project.color === 'var(--ochre)' ? 'var(--ink)' : 'var(--cream)',
           padding: '12px 18px',
@@ -526,7 +511,7 @@ function ProjectDetail({ project, onClose }) {
         </motion.div>
 
         {/* Piece 2: title slab */}
-        <motion.div className="work-detail-piece2" data-xray="DETAIL · TITLE" style={isMobile ? {
+        <motion.div className="work-detail-piece2" style={isMobile ? {
           /* nothing — just normal flow */
         } : {
           position: 'absolute',
@@ -544,7 +529,7 @@ function ProjectDetail({ project, onClose }) {
         </motion.div>
 
         {/* Piece 4: metrics */}
-        <motion.div className="work-detail-piece4" data-xray="DETAIL · READINGS" style={isMobile ? {
+        <motion.div className="work-detail-piece4" style={isMobile ? {
           display: 'flex',
           flexDirection: 'row',
           gap: 8,
@@ -581,7 +566,7 @@ function ProjectDetail({ project, onClose }) {
         </motion.div>
 
         {/* Piece 3: BRIEF */}
-        <motion.div className="work-detail-piece3" data-xray="DETAIL · BRIEF" style={isMobile ? {
+        <motion.div className="work-detail-piece3" style={isMobile ? {
           padding: '16px 20px',
           background: 'var(--cream)',
           border: '2px solid var(--ink)',
@@ -611,7 +596,7 @@ function ProjectDetail({ project, onClose }) {
         </motion.div>
 
         {/* Piece 5: stack chips */}
-        <motion.div className="work-detail-piece5" data-xray="DETAIL · INSTRUMENTS" style={isMobile ? {
+        <motion.div className="work-detail-piece5" style={isMobile ? {
           paddingBottom: 8,
         } : {
           position: 'absolute',

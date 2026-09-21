@@ -4,6 +4,7 @@ import chat from "../api/chat.js";
 import contact from "../api/contact.js";
 import studio from "../api/studio.js";
 import posterPage from "../api/p.js";
+import github from "../api/github.js";
 
 const server = serve({
   port: Number(process.env.PORT) || 0, // PORT=3000 for a stable local URL, else the OS picks one
@@ -15,6 +16,9 @@ const server = serve({
 
     // Contact form proxy — keeps the Web3Forms key server-side.
     "/api/contact": (req) => contact(req),
+
+    // Contribution calendar — GitHub GraphQL behind an Upstash cache.
+    "/api/github": (req) => github(req),
 
     // The Studio: publish / like / wall. Same handler as production; the op
     // comes from the path (Vercel rewrites /api/studio/<op> → ?op=<op>).
@@ -28,6 +32,25 @@ const server = serve({
     "/uploads/:file": async (req) => {
       const file = req.params.file;
       return new Response(Bun.file(`uploads/${file}`));
+    },
+
+    // Hero assets — the frame sequence and the art plate. In production these
+    // are copied into dist/ by build.ts and served straight off the CDN; in dev
+    // they come from public/. Without these two routes the SPA catch-all below
+    // answers every one of them with index.html.
+    "/hero/frames/:file": async (req) => {
+      const file = req.params.file;
+      if (!/^f_\d{4}\.webp$/.test(file)) return new Response("no", { status: 404 });
+      return new Response(Bun.file(`public/hero/frames/${file}`), {
+        headers: { "Cache-Control": "public, max-age=3600" },
+      });
+    },
+    "/hero/:file": async (req) => {
+      const file = req.params.file;
+      if (!/^[a-z0-9_-]+\.(webp|png|jpg|svg)$/i.test(file)) return new Response("no", { status: 404 });
+      return new Response(Bun.file(`public/hero/${file}`), {
+        headers: { "Cache-Control": "public, max-age=3600" },
+      });
     },
 
     // Serve index.html for all unmatched routes.

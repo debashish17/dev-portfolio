@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, useTransform } from 'motion/react';
 import { useRoute, useIsMobile, useMouseParallaxMV, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone, LiveClock, SectionMarker } from '../components/primitives.jsx';
-import { useXRayRegister } from '../components/xray/hooks.js';
-import { xv } from '../components/xray/descriptors.js';
 // CONTACT PAGE
 // Big propaganda-style "TRANSMIT" panel with form + contact details
 
@@ -13,17 +11,6 @@ export default function ContactPage() {
   const ringParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * 4}px, ${y * 4}px)`);
   const cardParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * -2}px, ${y * -2}px)`);
 
-  // Publish to x-ray mode. No scroll timeline here — pointer parallax only.
-  useXRayRegister('contact', {
-    variant: isMobile ? 'mobile' : 'desktop', timeline: null, scroller: null,
-    values: {
-      mouseX: xv.raw(mouse.x, [-5, 5], '', 'useMouseParallaxMV.x (unsprung)'),
-      mouseY: xv.raw(mouse.y, [-5, 5], '', 'useMouseParallaxMV.y (unsprung)'),
-      ringParallax: xv.transform(ringParallax, 'ring · translate'),
-      cardParallax: xv.transform(cardParallax, 'card · counter-translate'),
-    },
-    notes: ['form card moves against the pointer (×−2) while the ring moves with it (×4)'],
-  });
 
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [status, setStatus] = useState('idle'); // idle | sending | sent | error
@@ -71,7 +58,7 @@ export default function ContactPage() {
       </div>
 
       {/* Background giant ring */}
-      <motion.div className="contact-decor-ring" data-xray="DECOR · RING" data-xray-values="mouseX,mouseY" style={{
+      <motion.div className="contact-decor-ring" style={{
         position: 'absolute',
         right: -300, top: -200,
         width: 800, height: 800,
@@ -152,7 +139,7 @@ export default function ContactPage() {
         </div>
 
         {/* RIGHT: transmission card */}
-        <motion.div data-xray="FORM · CARD" data-xray-values="mouseX,mouseY" style={{
+        <motion.div style={{
           position: 'relative',
           transform: cardParallax,
         }}>

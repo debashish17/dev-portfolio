@@ -155,3 +155,12 @@ if (existsSync(uploadsDir)) {
   console.log("📁 Copied uploads/ → dist/uploads/\n");
 }
 
+// Copy public/ into dist root — the hero frame sequence lives at
+// public/hero/frames and must be served as /hero/frames/*.webp. Vercel checks
+// the filesystem before rewrites, so these win over the SPA catch-all.
+const publicDir = path.join(process.cwd(), "public");
+if (existsSync(publicDir)) {
+  await cp(publicDir, outdir, { recursive: true });
+  console.log("📁 Copied public/ → dist/\n");
+}
+

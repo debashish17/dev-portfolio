@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useXRayRegister } from '../components/xray/hooks.js';
 import { useIsMobile } from '../components/primitives.jsx';
 import { SNAP_SPRING } from '../motion/timeline.js';
 import Composer from '../studio/Composer.jsx';
@@ -84,15 +83,6 @@ export default function StudioPage() {
     if (v.kind === 'remix-loading' && v.id) remix(v.id);
   }, [remix]);
 
-  useXRayRegister('studio', {
-    variant: isMobile ? 'mobile' : 'desktop', timeline: null, scroller: scrollRef, values: {},
-    notes: [
-      `view: ${view.kind}`,
-      'board: canvas 2D · one draw per frame during a drag · React commits once per gesture',
-      `snap: spring k${SNAP_SPRING.stiffness} d${SNAP_SPRING.damping} m${SNAP_SPRING.mass} (ζ≈0.73, overshoots on purpose)`,
-      'publish: poster PNG 480×640 + share card 1200×630 rendered in the browser',
-    ],
-  });
 
   // 'loading' keeps the composer unmounted while remix layers are in flight —
   // otherwise a fresh board flashes for half a second and is then replaced.

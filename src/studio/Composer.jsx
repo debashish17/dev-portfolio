@@ -534,7 +534,6 @@ export default function Composer({ initialDoc, remixOf, onPublished, onOpenWall 
         onPointerMove={onBoardMove}
         onPointerUp={onBoardUp}
         onPointerCancel={onBoardUp}
-        data-xray="STUDIO · BOARD"
       >
         <canvas ref={canvasRef} className="st-canvas" />
         {tool === 'pen' && (
@@ -572,7 +571,7 @@ export default function Composer({ initialDoc, remixOf, onPublished, onOpenWall 
   );
 
   const keepBlock = (
-    <div className="st-stack st-result" data-xray="STUDIO · PUBLISH">
+    <div className="st-stack st-result">
       {publish.stage === 'idle' || publish.stage === 'error' ? (
         <>
           <button type="button" className="st-btn clickable" onClick={exportPng} data-magnet>EXPORT PNG</button>

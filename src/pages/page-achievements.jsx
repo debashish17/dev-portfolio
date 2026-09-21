@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, useTransform } from 'motion/react';
 import { useRoute, useIsMobile, useMouseParallaxMV, easeOut, clamp, remap, LogoMark, Circle, Bar, Triangle, Wedge, Ring, Halftone } from '../components/primitives.jsx';
-import { useXRayRegister } from '../components/xray/hooks.js';
-import { xv } from '../components/xray/descriptors.js';
 
 // ACHIEVEMENTS PAGE - hackathon victories
 // Big poster: medal/seal centered, geometric rays, achievement cards as cut-paper layers
@@ -36,17 +34,6 @@ export default function AchievementsPage() {
   const medalParallax = useTransform([mouse.x, mouse.y], ([x, y]) => `translate(${x * 4}px, ${y * 4}px)`);
   const [hovered, setHovered] = useState(null);
 
-  // Publish to x-ray mode. No scroll timeline here — pointer parallax only.
-  useXRayRegister('achievements', {
-    variant: isMobile ? 'mobile' : 'desktop', timeline: null, scroller: null,
-    values: {
-      mouseX: xv.raw(mouse.x, [-5, 5], '', 'useMouseParallaxMV.x (unsprung)'),
-      mouseY: xv.raw(mouse.y, [-5, 5], '', 'useMouseParallaxMV.y (unsprung)'),
-      raysParallax: xv.transform(raysParallax, 'rays · rotate'),
-      medalParallax: xv.transform(medalParallax, 'medal · translate'),
-    },
-    notes: ['medal ring + star: infinite CSS rotations (60s / 120s)', 'card hover: React state + CSS transition'],
-  });
 
   return (
     <div className="paper-bg" style={{
@@ -61,7 +48,7 @@ export default function AchievementsPage() {
       </div>
 
       {/* Background propaganda rays from top-right */}
-      <motion.div className="achievements-rays" data-xray="DECOR · RAYS" data-xray-values="mouseX" style={{
+      <motion.div className="achievements-rays" style={{
         position: 'absolute',
         top: -200, right: -200,
         width: 1200, height: 1200,
@@ -82,7 +69,7 @@ export default function AchievementsPage() {
       </motion.div>
 
       {/* Big medal seal */}
-      <motion.div className="achievements-medal" data-xray="DECOR · MEDAL" data-xray-values="mouseX,mouseY" style={{
+      <motion.div className="achievements-medal" style={{
         position: 'absolute',
         top: '50%', left: '50%',
         width: 440, height: 440,
@@ -217,7 +204,6 @@ function AchievementCard({ a, align, rotate, isHovered, onHover, isMobile }) {
   return (
     <div
       data-magnet
-      data-xray={`CARD · ${a.place}`}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
       style={{
