@@ -83,9 +83,22 @@ export default function AboutPage() {
             <AboutScene3 enter={enter3} isMobile={isMobile} />
           </motion.div>
 
-          {/* Section header */}
+          {/* Section header. On a plate, because on a phone the portrait runs
+              to the top of the stage and plain red type landed on dark hair —
+              unreadable. The plate carries its own ground, so it reads the
+              same whatever is behind it. */}
           <div style={{ position: 'absolute', top: 24, left: 24, zIndex: 10 }}>
-            <div className="label" style={{ color: 'var(--red)' }}>FOLIO № II · ABOUT</div>
+            <div
+              className="label"
+              style={{
+                display: 'inline-block',
+                color: 'var(--cream)',
+                background: 'var(--ink)',
+                padding: '6px 12px',
+              }}
+            >
+              FOLIO № II · ABOUT
+            </div>
           </div>
         </div>
       </div>

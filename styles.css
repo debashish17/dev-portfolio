@@ -602,9 +602,11 @@ html, body {
   .contact-transmit-card {
     padding: 24px 20px !important;
   }
-  /* Contact rows — narrower label column, smaller value font */
+  /* Contact rows — narrower label column, smaller value font. 94px, not 70:
+     INSTAGRAM is the longest label and sets 85px of ink, so a 70px column had
+     it running straight into its own value with no gap. */
   .contact-row {
-    grid-template-columns: 70px 1fr 20px !important;
+    grid-template-columns: 94px 1fr 20px !important;
     gap: 12px !important;
   }
   .contact-row-value {
