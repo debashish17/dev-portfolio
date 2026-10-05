@@ -1438,7 +1438,6 @@ html, body {
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 24px; flex-wrap: wrap; margin-bottom: 34px;
 }
-.contrib-kicker { color: var(--red); margin-bottom: 12px; }
 
 .contrib-title {
   font-family: 'Archivo Black', sans-serif;

@@ -90,7 +90,6 @@ export default function Contributions() {
       <div className="contrib-inner">
         <div className="contrib-head">
           <div>
-            <div className="label contrib-kicker">Section IV · Evidence</div>
             <h2 id="contrib-heading" className="contrib-title">
               {loading ? <span className="contrib-skeleton-num" /> : data.total.toLocaleString()}
               <span className="contrib-title-tail">contributions in the last year</span>
