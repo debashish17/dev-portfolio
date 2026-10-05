@@ -74,6 +74,32 @@ export default function Contributions() {
   const weeks = data?.weeks || [];
   const bucket = loading ? () => 0 : bucketer(weeks);
 
+  // The year runs oldest-left, so a narrow screen opens on last October and
+  // the recent weeks — the part worth seeing — sit off the right edge with
+  // nothing to say so: scrollbars are hidden site-wide. So it opens scrolled
+  // to the newest week, and whichever side still has weeks behind it wears a
+  // fade. tabIndex makes the region reachable for anyone scrolling by key,
+  // which with no scrollbar is otherwise impossible.
+  const scrollRef = useRef(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+
+  const syncEdges = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setEdges({ left: el.scrollLeft > 2, right: el.scrollLeft < max - 2 });
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || loading) return undefined;
+    el.scrollLeft = el.scrollWidth;          // newest week first
+    syncEdges();
+    const onResize = () => syncEdges();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [loading, syncEdges]);
+
   // Month ticks: label a column when its week starts a new month.
   const monthTicks = [];
   if (data?.from) {
@@ -111,7 +137,15 @@ export default function Contributions() {
           </p>
         )}
 
-        <div className="contrib-scroll">
+        <div className={`contrib-scroller${edges.left ? ' has-left' : ''}${edges.right ? ' has-right' : ''}`}>
+        <div
+          className="contrib-scroll"
+          ref={scrollRef}
+          onScroll={syncEdges}
+          tabIndex={0}
+          role="group"
+          aria-label="Contribution calendar, scrolls sideways"
+        >
           <div
             className="contrib-grid-wrap"
             ref={gridRef}
@@ -167,6 +201,7 @@ export default function Contributions() {
               </div>
             )}
           </div>
+        </div>
         </div>
 
         <div className="contrib-legend" aria-hidden="true">
