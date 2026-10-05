@@ -428,9 +428,15 @@ html, body {
   color: var(--red);
 }
 
-/* ============ TOUCH — hide custom cursor ============ */
+/* ============ TOUCH ============ */
+/* Copy that names an input the device does not have is worse than no copy.
+   Keyed on capability rather than width, so a touch laptop reads "tap" and a
+   narrow desktop window still reads "hover". */
+.if-touch { display: none; white-space: nowrap; }
 @media (hover: none) {
   .cursor-dot { display: none !important; }
+  .if-pointer { display: none; }
+  .if-touch { display: inline; }
 }
 
 /* ============ RESPONSIVE BREAKPOINTS ============ */

@@ -201,7 +201,11 @@ export default function WorkPage() {
             {String(PROJECTS.length).padStart(2, '0')} · ENTRIES
           </div>
           <div className="mono" style={{ fontSize: 11, opacity: 0.6 }}>
-            HOVER · CLICK TO INSPECT
+            {/* Told apart by input capability, not width: a touch laptop and a
+                narrow desktop window are different things, and only one of
+                them can hover. */}
+            <span className="if-pointer">HOVER · CLICK TO INSPECT</span>
+            <span className="if-touch">TAP TO INSPECT</span>
           </div>
         </div>
       </div>
