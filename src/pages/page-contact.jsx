@@ -54,7 +54,7 @@ export default function ContactPage() {
 
       {/* Header */}
       <div className="contact-page-header" style={{ position: 'absolute', top: 'var(--pad-y)', left: 'var(--pad-x)', zIndex: 5 }}>
-        <div className="label" style={{ color: 'var(--red)' }}>FOLIO № V · TRANSMIT</div>
+        <div className="label folio-kicker">FOLIO № V · TRANSMIT</div>
       </div>
 
       {/* Background giant ring */}

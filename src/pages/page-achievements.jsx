@@ -44,7 +44,7 @@ export default function AchievementsPage() {
 
       {/* Header */}
       <div className="achievements-page-header" style={{ position: 'absolute', top: 'var(--pad-y)', left: 'var(--pad-x)', zIndex: 5 }}>
-        <div className="label" style={{ color: 'var(--red)' }}>FOLIO № IV · HONOURS</div>
+        <div className="label folio-kicker">FOLIO № IV · HONOURS</div>
       </div>
 
       {/* Background propaganda rays from top-right */}

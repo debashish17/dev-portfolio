@@ -107,7 +107,7 @@ export default function Wall({ onOpenPoster, onRemix, onMakeYours, focusId }) {
     <div className="st-wall">
       <div className="st-wall-head">
         <div>
-          <div className="label" style={{ color: 'var(--red)' }}>FOLIO № VI · THE WALL</div>
+          <div className="label folio-kicker">FOLIO № VI · THE WALL</div>
           <h2 className="display st-wall-title">THE WALL<span style={{ color: 'var(--red)' }}>.</span></h2>
           <div className="mono st-dim st-wall-sub">{period === 'archive' ? 'EVERY POSTER EVER HUNG, NEWEST FIRST. LIKES COUNT TOWARDS ITS WEEK AND ALL-TIME.' : period === 'mine' ? 'POSTERS PUBLISHED FROM THIS BROWSER.' : 'ONLY THE TEN MOST-LIKED POSTERS HANG HERE. LIKE ONE TO KEEP IT UP; MAKE ONE TO TAKE A SPOT.'}</div>
         </div>

@@ -101,7 +101,7 @@ export default function StudioPage() {
             {/* The wall and the poster view carry their own label and title */}
             {(tab === 'compose' || tab === 'loading') && (
               <>
-                <div className="label" style={{ color: 'var(--red)' }}>FOLIO № VI · STUDIO</div>
+                <div className="label folio-kicker">FOLIO № VI · STUDIO</div>
                 <h1 className="display st-title">THE STUDIO<span style={{ color: 'var(--red)' }}>.</span></h1>
                 <div className="mono st-dim st-sub">
                   {view.remixOf ? `REMIXING № ${view.remixOf.toUpperCase()} — ` : ''}A POSTER IN THIS SITE'S LANGUAGE — YOUR PHOTO THROUGH FOUR INKS, SHAPES THAT OVERPRINT, TYPE ON THE DIAGONAL. SNAPS TO 80.

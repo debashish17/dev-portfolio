@@ -66,20 +66,17 @@ export default function Contributions() {
     });
   }, []);
 
-  // An empty calendar reads as "inactive", which is the opposite of the point.
-  // If the endpoint is unreachable or unconfigured, the section is not shown.
-  if (failed) return null;
-
-  const loading = !data;
-  const weeks = data?.weeks || [];
-  const bucket = loading ? () => 0 : bucketer(weeks);
-
   // The year runs oldest-left, so a narrow screen opens on last October and
   // the recent weeks — the part worth seeing — sit off the right edge with
   // nothing to say so: scrollbars are hidden site-wide. So it opens scrolled
   // to the newest week, and whichever side still has weeks behind it wears a
   // fade. tabIndex makes the region reachable for anyone scrolling by key,
   // which with no scrollbar is otherwise impossible.
+  //
+  // ABOVE the `failed` gate below, and deliberately: hooks after an early
+  // return change the hook count between renders, so the first render that
+  // bails would take the whole app down with it — the opposite of hiding
+  // the section cleanly.
   const scrollRef = useRef(null);
   const [edges, setEdges] = useState({ left: false, right: false });
 
@@ -92,13 +89,21 @@ export default function Contributions() {
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || loading) return undefined;
+    if (!el || !data) return undefined;
     el.scrollLeft = el.scrollWidth;          // newest week first
     syncEdges();
     const onResize = () => syncEdges();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [loading, syncEdges]);
+  }, [data, syncEdges]);
+
+  // An empty calendar reads as "inactive", which is the opposite of the point.
+  // If the endpoint is unreachable or unconfigured, the section is not shown.
+  if (failed) return null;
+
+  const loading = !data;
+  const weeks = data?.weeks || [];
+  const bucket = loading ? () => 0 : bucketer(weeks);
 
   // Month ticks: label a column when its week starts a new month.
   const monthTicks = [];

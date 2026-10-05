@@ -187,7 +187,7 @@ export default function WorkPage() {
         zIndex: 5,
       }}>
         <div>
-          <div className="label" style={{ color: 'var(--red)' }}>FOLIO № III · ARCHIVE</div>
+          <div className="label folio-kicker">FOLIO № III · ARCHIVE</div>
           <div className="display" style={{
             fontSize: 'clamp(50px, 7vw, 110px)',
             color: 'var(--ink)',

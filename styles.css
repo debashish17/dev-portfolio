@@ -68,6 +68,18 @@ html, body {
   font-feature-settings: 'ss01';
 }
 
+/* The page kicker, on a plate rather than as plain red type. Red on paper is
+   4.2:1, under the floor for 11px, and on About it also has to survive
+   landing on a photograph — the plate carries its own ground, so all six read
+   the same wherever they sit. */
+.folio-kicker {
+  display: inline-block;
+  color: var(--cream);
+  background: var(--ink);
+  padding: 6px 12px;
+  margin-bottom: 10px;
+}
+
 .label {
   font-family: 'Archivo', sans-serif;
   font-weight: 700;
